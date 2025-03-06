@@ -1,64 +1,133 @@
-"use client"
+"use client";
 
-import type * as React from "react"
-import { useState, useEffect } from "react"
-import { Box, Card, CardContent, Typography, TextField, Button, Alert, Grid, Divider } from "@mui/material"
-import SaveIcon from "@mui/icons-material/Save"
-import { useToast } from "../contexts/toast-context"
+import type * as React from "react";
+import { useState, useEffect } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  Grid,
+  Divider,
+  Switch,
+  FormControlLabel,
+  CircularProgress,
+} from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
+import { useToast } from "../contexts/toast-context";
+import { usePlaywright } from "../contexts/playwright.context";
+import { getWebSession, setWebSession } from "../services/settings-service";
 
 interface Settings {
-  web_session: string
-  webId: string
+  web_session: string;
+  autoStartPlaywright: boolean;
 }
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
     web_session: "",
-    webId: "",
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { showToast } = useToast()
+    autoStartPlaywright: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [fetchingSession, setFetchingSession] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
+  const { startBrowser, status: playwrightStatus } = usePlaywright();
 
-  // Load settings from localStorage on component mount
+  // Load settings from localStorage and API
   useEffect(() => {
-    const savedSettings = localStorage.getItem("xiaohongshu_settings")
-    if (savedSettings) {
+    const loadSettings = async () => {
+      setFetchingSession(true);
+      // Load web_session from API
       try {
-        setSettings(JSON.parse(savedSettings))
-      } catch (e) {
-        console.error("Failed to parse saved settings", e)
+        const response = await getWebSession();
+        const data = JSON.parse(response.web_session!);
+        if (!response.error) {
+          setSettings({
+            web_session: data.web_session || "",
+            autoStartPlaywright:
+              localStorage.getItem("autoStartPlaywright") === "true",
+          });
+        } else {
+          console.error("Failed to fetch web_session:", response.error);
+          setSettings({
+            web_session: "",
+            autoStartPlaywright:
+              localStorage.getItem("autoStartPlaywright") === "true",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching web_session:", error);
+      } finally {
+        setFetchingSession(false);
       }
-    }
-  }, [])
+    };
+    loadSettings();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setSettings((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
+
+  const handleSwitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { checked } = e.target;
+    setSettings((prev) => ({
+      ...prev,
+      autoStartPlaywright: checked,
+    }));
+    localStorage.setItem("autoStartPlaywright", checked.toString());
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Save web_session to API
+      const response = await setWebSession(settings.web_session);
 
-      // Save to localStorage
-      localStorage.setItem("xiaohongshu_settings", JSON.stringify(settings))
+      if (!response.error) {
+        showToast(
+          response.message || "Settings saved successfully!",
+          "success"
+        );
 
-      showToast("Settings saved successfully!", "success")
+        // Auto-start Playwright if enabled
+        if (settings.autoStartPlaywright && playwrightStatus === "stopped") {
+          await startBrowser();
+        }
+      } else {
+        setError(response.error || "Failed to save web_session");
+      }
     } catch (err) {
-      setError("Failed to save settings. Please try again.")
-      console.error("Save settings error:", err)
+      setError("Failed to save settings. Please try again.");
+      console.error("Save settings error:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
+  };
+
+  if (fetchingSession) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "50vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -92,15 +161,16 @@ export default function SettingsPage() {
                   </Grid>
 
                   <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="webId"
-                      name="webId"
-                      value={settings.webId}
-                      onChange={handleChange}
-                      variant="outlined"
-                      required
-                      helperText="Your Xiaohongshu webId value"
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={settings.autoStartPlaywright}
+                          onChange={handleSwitchChange}
+                          name="autoStartPlaywright"
+                          color="primary"
+                        />
+                      }
+                      label="保存后自动启动 Playwright"
                     />
                   </Grid>
 
@@ -109,7 +179,9 @@ export default function SettingsPage() {
                       type="submit"
                       variant="contained"
                       color="primary"
-                      startIcon={<SaveIcon />}
+                      startIcon={
+                        loading ? <CircularProgress size={24} /> : <SaveIcon />
+                      }
                       disabled={loading}
                       sx={{ mt: 2 }}
                     >
@@ -140,7 +212,8 @@ export default function SettingsPage() {
               </Typography>
 
               <Typography variant="body2" paragraph>
-                2. Open Developer Tools (F12 or right-click and select "Inspect")
+                2. Open Developer Tools (F12 or right-click and select
+                "Inspect")
               </Typography>
 
               <Typography variant="body2" paragraph>
@@ -148,7 +221,7 @@ export default function SettingsPage() {
               </Typography>
 
               <Typography variant="body2" paragraph>
-                4. Find and copy the values for "web_session" and "webId"
+                4. Find and copy the values for "web_session"
               </Typography>
 
               <Alert severity="warning" sx={{ mt: 2 }}>
@@ -159,6 +232,5 @@ export default function SettingsPage() {
         </Grid>
       </Grid>
     </Box>
-  )
+  );
 }
-

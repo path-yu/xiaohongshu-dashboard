@@ -5,6 +5,8 @@ interface CommentStore {
   selectedPosts: Post[];
   isCommentModalOpen: boolean;
   togglePostSelection: (post: Post) => void;
+  selectAllPosts: (posts: Post[]) => void;
+  deselectAllPosts: () => void;
   openCommentModal: () => void;
   closeCommentModal: () => void;
   clearSelectedPosts: () => void;
@@ -28,6 +30,27 @@ export const useCommentStore = create<CommentStore>((set) => ({
         };
       }
     }),
+
+  selectAllPosts: (posts) =>
+    set((state) => {
+      // Create a map of existing selected posts for quick lookup
+      const selectedMap = new Map(
+        state.selectedPosts.map((post) => [post.id, post])
+      );
+
+      // Add all posts that aren't already selected
+      posts.forEach((post) => {
+        if (!selectedMap.has(post.id)) {
+          selectedMap.set(post.id, post);
+        }
+      });
+
+      return {
+        selectedPosts: Array.from(selectedMap.values()),
+      };
+    }),
+
+  deselectAllPosts: () => set({ selectedPosts: [] }),
 
   openCommentModal: () => set({ isCommentModalOpen: true }),
 

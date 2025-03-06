@@ -27,7 +27,7 @@ export default function PostList({ posts }: PostListProps) {
   return (
     <Grid container spacing={3}>
       {posts.map((post) => (
-        <Grid item xs={12} sm={6} md={4} key={post.id}>
+        <Grid item xs={12} sm={6} md={2} key={post.id}>
           <Card
             sx={{
               position: "relative",
@@ -65,14 +65,14 @@ export default function PostList({ posts }: PostListProps) {
               />
             </Box>
 
-            <CardMedia
+            {/* <CardMedia
               component="img"
               height="140"
               image={post.imageUrl}
               alt={post.title}
-            />
+            /> */}
 
-            <CardContent sx={{ flexGrow: 1 }}>
+            <CardContent sx={{ flexGrow: 1, marginLeft: "30px" }}>
               <Typography gutterBottom variant="h6" component="div" noWrap>
                 {post.title}
               </Typography>

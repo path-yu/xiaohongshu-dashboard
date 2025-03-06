@@ -1,66 +1,232 @@
-"use client"
+"use client";
 
-import type * as React from "react"
-import { useState, useEffect } from "react"
-import { Box, Card, CardContent, Typography, Grid, Tabs, Tab, CircularProgress } from "@mui/material"
-import PostList from "../components/post-list"
-import CommentModal from "../components/comment-modal"
-import { useCommentStore } from "../store/comment-store"
-import type { Post } from "../types"
-
-// Mock API function to fetch posts by category
-const fetchPostsByCategory = async (category: string): Promise<Post[]> => {
-  // Simulate API call
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-
-  // Return mock data
-  return Array(10)
-    .fill(null)
-    .map((_, index) => ({
-      id: `${category}-${index}`,
-      title: `${category} Post ${index + 1}`,
-      content: `This is a sample post content for ${category} category.`,
-      author: `User${Math.floor(Math.random() * 1000)}`,
-      likes: Math.floor(Math.random() * 1000),
-      comments: Math.floor(Math.random() * 100),
-      imageUrl: `https://via.placeholder.com/200x200?text=${category}+${index}`,
-      category,
-    }))
-}
+import type * as React from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Tabs,
+  Tab,
+  CircularProgress,
+  Alert,
+  Button,
+  Skeleton,
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import PostList from "../components/post-list";
+import CommentModal from "../components/comment-modal";
+import { useCommentStore } from "../store/comment-store";
+import type { Post } from "../types";
+import {
+  getHomeFeed,
+  getCategories,
+  type Category,
+} from "../services/homefeed-service";
+import { FeedType, type HomeFeedItem } from "../types/homefeed";
+import { usePlaywright } from "../contexts/playwright.context";
+import { useToast } from "../contexts/toast-context";
+import { usePostContext } from "../contexts/post-context";
 
 export default function Dashboard() {
-  const [tabValue, setTabValue] = useState(0)
-  const [categories, setCategories] = useState<string[]>([])
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
-  const { selectedPosts, isCommentModalOpen } = useCommentStore()
+  const [tabValue, setTabValue] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { selectedPosts, isCommentModalOpen } = useCommentStore();
+  const { status: playwrightStatus } = usePlaywright();
+  const { showToast } = useToast();
+  const { setCurrentPosts } = usePostContext();
 
   // Fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      // Simulate API call to get categories
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setCategories(["Recommended", "Fashion", "Beauty", "Food", "Travel"])
-      setLoading(false)
-    }
+  const fetchCategories = useCallback(async () => {
+    setLoadingCategories(true);
 
-    fetchCategories()
-  }, [])
+    try {
+      // If Playwright is not running, use default categories
+      if (playwrightStatus !== "running") {
+        setCategories([
+          { id: "recommend", name: "推荐" },
+          { id: "follow", name: "关注" },
+        ]);
+        setLoadingCategories(false);
+        return;
+      }
 
-  // Fetch posts when tab changes
-  useEffect(() => {
-    if (categories.length > 0) {
-      setLoading(true)
-      fetchPostsByCategory(categories[tabValue]).then((data) => {
-        setPosts(data)
-        setLoading(false)
-      })
+      // Get categories from API
+      const response = await getCategories();
+
+      if (!response.success) {
+        console.error("Failed to fetch categories:", response.error);
+        // Fall back to default categories
+        setCategories([
+          { id: "recommend", name: "推荐" },
+          { id: "follow", name: "关注" },
+        ]);
+      } else if (!response.data || response.data.length === 0) {
+        // If no categories returned, use defaults
+        setCategories([
+          { id: "recommend", name: "推荐" },
+          { id: "follow", name: "关注" },
+        ]);
+      } else {
+        // Process API categories to ensure 推荐 is first
+        let apiCategories = [...response.data];
+
+        // Find if 推荐 exists in the categories
+        const recommendIndex = apiCategories.findIndex(
+          (cat) => cat.name === "推荐"
+        );
+
+        if (recommendIndex === -1) {
+          // If 推荐 doesn't exist, add it at the beginning
+          apiCategories = [{ id: "recommend", name: "推荐" }, ...apiCategories];
+        } else if (recommendIndex > 0) {
+          // If 推荐 exists but is not first, move it to the beginning
+          const recommendCategory = apiCategories.splice(recommendIndex, 1)[0];
+          apiCategories = [recommendCategory, ...apiCategories];
+        }
+
+        setCategories(apiCategories);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      // Fall back to default categories
+      setCategories([
+        { id: "recommend", name: "推荐" },
+        { id: "follow", name: "关注" },
+      ]);
+    } finally {
+      setLoadingCategories(false);
     }
-  }, [tabValue, categories])
+  }, [playwrightStatus]);
+
+  // Fetch categories on mount and when Playwright status changes
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Fetch posts when tab changes or when Playwright status changes
+  const fetchPosts = useCallback(async () => {
+    if (categories.length === 0) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // If Playwright is not running, show mock data
+      if (playwrightStatus !== "running") {
+        // Mock data for demonstration
+        const mockPosts = Array(10)
+          .fill(null)
+          .map((_, index) => ({
+            id: `mock-${index}`,
+            title: `${categories[tabValue]?.name || "示例"} 示例帖子 ${
+              index + 1
+            }`,
+            content: `这是一个示例帖子内容，请先启动 Playwright 以获取真实数据。`,
+            author: `用户${Math.floor(Math.random() * 1000)}`,
+            likes: Math.floor(Math.random() * 1000),
+            comments: Math.floor(Math.random() * 100),
+            imageUrl: `https://via.placeholder.com/200x200?text=${
+              categories[tabValue]?.name || "示例"
+            }+${index}`,
+            category: categories[tabValue]?.name || "示例",
+          }));
+
+        setPosts(mockPosts);
+        setCurrentPosts(mockPosts);
+        setLoading(false);
+        return;
+      }
+
+      // Get real data from API
+      // Use the category ID if available, otherwise fallback to enum
+      const feedType =
+        categories[tabValue]?.id ||
+        (tabValue === 0 ? FeedType.RECOMMEND : FeedType.FOLLOW);
+      const response = await getHomeFeed(feedType as FeedType);
+
+      if (!response.success) {
+        // Extract the specific error message from the API response
+        const errorMessage =
+          response.error || response.message || "获取帖子失败，请稍后重试";
+        throw new Error(errorMessage);
+      }
+
+      // Check if items array exists and is not empty
+      if (!response.data?.items || response.data.items.length === 0) {
+        throw new Error("没有获取到帖子数据，请稍后重试");
+      }
+
+      // Convert API response to Post format
+      const apiPosts = response.data.items.map((item: HomeFeedItem) => ({
+        id: item.id,
+        title: item.note_card.display_title || "无标题",
+        content: item.note_card.display_title || "无内容", // Use title as content since we don't have content in the API
+        author: item.note_card.user?.nickname || "未知用户",
+        likes: Number.parseInt(item.note_card.interact_info?.liked_count) || 0,
+        comments: Math.floor(Math.random() * 100), // Random comments count since we don't have it in the API
+        imageUrl:
+          item.note_card.cover?.url_default ||
+          item.note_card.cover?.url_pre ||
+          "https://via.placeholder.com/200x200?text=No+Image",
+        category: categories[tabValue]?.name || "未分类",
+      }));
+
+      setPosts(apiPosts);
+      setCurrentPosts(apiPosts);
+    } catch (err) {
+      console.error("Error fetching posts:", err);
+      // Use the specific error message if available
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "获取帖子失败，请检查网络连接或确保 Playwright 已启动";
+      setError(errorMessage);
+
+      // Show toast with error message
+      showToast(errorMessage, "error");
+
+      // Set mock data for error state
+      const mockErrorPosts = Array(6)
+        .fill(null)
+        .map((_, index) => ({
+          id: `mock-error-${index}`,
+          title: `示例帖子 ${index + 1}`,
+          content: `这是一个示例帖子内容，API 请求失败时显示。`,
+          author: `用户${Math.floor(Math.random() * 1000)}`,
+          likes: Math.floor(Math.random() * 1000),
+          comments: Math.floor(Math.random() * 100),
+          imageUrl: `https://via.placeholder.com/200x200?text=Error+${index}`,
+          category: categories[tabValue]?.name || "未分类",
+        }));
+
+      setCurrentPosts(mockErrorPosts);
+    } finally {
+      setLoading(false);
+    }
+  }, [tabValue, categories, playwrightStatus, setCurrentPosts, showToast]);
+
+  // Fetch posts when tab changes, categories change, or when Playwright status changes
+  useEffect(() => {
+    if (categories.length > 0 && !loadingCategories) {
+      fetchPosts();
+    }
+  }, [fetchPosts, categories, loadingCategories]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue)
-  }
+    setTabValue(newValue);
+  };
+
+  const handleRefresh = () => {
+    fetchCategories();
+    fetchPosts();
+  };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -68,14 +234,45 @@ export default function Dashboard() {
         <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Typography variant="h5" component="div" gutterBottom>
-                Xiaohongshu Posts
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}
+              >
+                <Typography variant="h5" component="div">
+                  小红书帖子
+                </Typography>
 
-              {loading && categories.length === 0 ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                  <CircularProgress />
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {playwrightStatus !== "running" && (
+                    <Alert severity="warning" sx={{ mr: 2 }}>
+                      Playwright{" "}
+                      {playwrightStatus === "loading" ? "正在启动中" : "未运行"}
+                      ，显示的是示例数据
+                    </Alert>
+                  )}
+
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<RefreshIcon />}
+                    onClick={handleRefresh}
+                    disabled={loading || loadingCategories}
+                  >
+                    刷新
+                  </Button>
                 </Box>
+              </Box>
+
+              {loadingCategories ? (
+                <Skeleton
+                  variant="rectangular"
+                  height={48}
+                  sx={{ borderRadius: 1, mb: 2 }}
+                />
               ) : (
                 <Tabs
                   value={tabValue}
@@ -85,14 +282,51 @@ export default function Dashboard() {
                   sx={{ mb: 2 }}
                 >
                   {categories.map((category, index) => (
-                    <Tab key={index} label={category} />
+                    <Tab key={category.id || index} label={category.name} />
                   ))}
                 </Tabs>
               )}
 
-              {loading && categories.length > 0 ? (
+              {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
                   <CircularProgress />
+                </Box>
+              ) : error ? (
+                <Box>
+                  <Alert
+                    severity="error"
+                    sx={{ mb: 2 }}
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={handleRefresh}
+                      >
+                        重试
+                      </Button>
+                    }
+                  >
+                    {error}
+                  </Alert>
+
+                  {/* Show mock data even when there's an error */}
+                  <Typography variant="subtitle1" sx={{ mb: 2, mt: 4 }}>
+                    示例数据：
+                  </Typography>
+                  <PostList
+                    posts={Array(6)
+                      .fill(null)
+                      .map((_, index) => ({
+                        id: `mock-error-${index}`,
+                        title: `示例帖子 ${index + 1}`,
+                        content: `这是一个示例帖子内容，API 请求失败时显示。`,
+                        author: `用户${Math.floor(Math.random() * 1000)}`,
+                        likes: Math.floor(Math.random() * 1000),
+                        comments: Math.floor(Math.random() * 100),
+                        imageUrl: `https://via.placeholder.com/200x200?text=Error+${index}`,
+                        category: categories[tabValue]?.name || "未分类",
+                      }))}
+                  />
                 </Box>
               ) : (
                 <PostList posts={posts} />
@@ -104,6 +338,5 @@ export default function Dashboard() {
 
       {isCommentModalOpen && <CommentModal />}
     </Box>
-  )
+  );
 }
-

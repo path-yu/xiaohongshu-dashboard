@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "vite start"
+    "start": "vite start",
+    "pkg": "npm run build && node runPkg.js",
+    "server": "cd ./server && node ./main.js"
   },
   "dependencies": {
     "@emotion/cache": "latest",
@@ -30,7 +32,11 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "use-sync-external-store": "latest",
-    "zustand": "latest"
+    "zustand": "latest",
+    "axios": "^1.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "playwright": "^1.50.1"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -41,5 +47,18 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
     "vite": "^6.2.0"
+  },
+  "pkg": {
+    "assets": [
+      "server/stealth.min.js",
+      "server/dist/**/*",
+      "server/index.html",
+      "server/enums.js",
+      "server/exception.js",
+      "server/help.js",
+      "server/xhsClient.js",
+      "server/session.json"
+    ],
+    "output": "xhs-web-app"
   }
 }
