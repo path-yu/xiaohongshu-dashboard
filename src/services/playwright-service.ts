@@ -8,6 +8,7 @@ export type PlaywrightStatusType = "running" | "loading" | "stopped";
 export interface PlaywrightStatusResponse {
   status: PlaywrightStatusType;
   message: string;
+  timestamp?: string;
   error?: string;
 }
 
@@ -17,31 +18,11 @@ export interface PlaywrightControlResponse {
 }
 
 /**
- * Check the status of Playwright browser
- */
-export const checkPlaywrightStatus =
-  async (): Promise<PlaywrightStatusResponse> => {
-    try {
-      return await api.get<PlaywrightStatusResponse>("api/playwright/status");
-    } catch (error) {
-      console.error("Failed to check Playwright status:", error);
-      return {
-        status: "stopped",
-        message: "Failed to check Playwright status",
-        error:
-          "Failed to check Playwright status. Please check your connection.",
-      };
-    }
-  };
-
-/**
  * Start the Playwright browser
  */
 export const startPlaywright = async (): Promise<PlaywrightControlResponse> => {
   try {
-    return await api.post<PlaywrightControlResponse>("api/control", {
-      action: "start",
-    });
+    return await api.post<PlaywrightControlResponse>("api/playwright/start");
   } catch (error) {
     console.error("Failed to start Playwright:", error);
     return {
@@ -55,9 +36,7 @@ export const startPlaywright = async (): Promise<PlaywrightControlResponse> => {
  */
 export const stopPlaywright = async (): Promise<PlaywrightControlResponse> => {
   try {
-    return await api.post<PlaywrightControlResponse>("api/control", {
-      action: "stop",
-    });
+    return await api.post<PlaywrightControlResponse>("api/playwright/stop");
   } catch (error) {
     console.error("Failed to stop Playwright:", error);
     return {

@@ -57,6 +57,8 @@ export const fetchApi = async <T>(
  * Common API request methods
  */
 export const api = {
+  getApiUrl,
+
   get: <T>(endpoint: string, options?: RequestInit) =>
     fetchApi<T>(endpoint, { ...options, method: "GET" }),
 

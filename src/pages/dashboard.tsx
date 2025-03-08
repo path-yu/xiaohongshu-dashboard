@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { selectedPosts, isCommentModalOpen } = useCommentStore();
+  const { isCommentModalOpen } = useCommentStore();
   const { status: playwrightStatus } = usePlaywright();
   const { showToast } = useToast();
   const { setCurrentPosts } = usePostContext();
@@ -210,7 +210,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [tabValue, categories, playwrightStatus, setCurrentPosts, showToast]);
+  }, [tabValue, categories]);
 
   // Fetch posts when tab changes, categories change, or when Playwright status changes
   useEffect(() => {

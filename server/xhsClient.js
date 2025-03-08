@@ -1,22 +1,25 @@
 // xhsClient.js
-const axios = require("axios");
-const path = require("path");
-const fs = require("fs");
-const {
+import axios from "axios";
+import path from "path";
+import fs from "fs";
+
+import {
   FeedType,
   NoteType,
   SearchSortType,
   SearchNoteType,
   Note,
-} = require("./enums");
-const {
+} from "./enums.js"; // 需要加 `.js` 扩展名
+
+import {
   ErrorEnum,
   DataFetchError,
   IPBlockError,
   SignError,
   NeedVerifyError,
-} = require("./exception");
-const {
+} from "./exception.js"; // 需要加 `.js` 扩展名
+
+import {
   sign,
   getImgsUrlFromNote,
   getVideoUrlFromNote,
@@ -25,7 +28,7 @@ const {
   downloadFile,
   cookieJarToCookieStr,
   updateSessionCookiesFromCookie,
-} = require("./help");
+} from "./help.js"; // 需要加 `.js` 扩展名
 
 class XhsClient {
   constructor({
@@ -358,4 +361,4 @@ class XhsClient {
   }
 }
 
-module.exports = XhsClient;
+export default XhsClient;

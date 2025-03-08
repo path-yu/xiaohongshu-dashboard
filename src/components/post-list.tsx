@@ -72,7 +72,7 @@ export default function PostList({ posts }: PostListProps) {
               alt={post.title}
             /> */}
 
-            <CardContent sx={{ flexGrow: 1, marginLeft: "30px" }}>
+            <CardContent sx={{ flexGrow: 1, marginLeft: "35px" }}>
               <Typography gutterBottom variant="h6" component="div" noWrap>
                 {post.title}
               </Typography>

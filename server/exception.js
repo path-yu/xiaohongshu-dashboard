@@ -55,10 +55,4 @@ class NeedVerifyError extends Error {
   }
 }
 
-module.exports = {
-  ErrorEnum,
-  DataFetchError,
-  IPBlockError,
-  SignError,
-  NeedVerifyError,
-};
+export { ErrorEnum, DataFetchError, IPBlockError, SignError, NeedVerifyError };

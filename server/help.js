@@ -1,9 +1,7 @@
 // help.js
-const crypto = require("crypto");
-const fs = require("fs");
-const axios = require("axios");
-const urllib = require("url");
-
+import axios from "axios";
+import fs from "fs";
+import crypto from "crypto";
 function sign(uri, data = null, ctime = null, a1 = "", b1 = "") {
   function h(n) {
     let m = "";
@@ -292,7 +290,25 @@ function base36encode(number) {
 function base36decode(number) {
   return parseInt(number, 36);
 }
+const sleep = (ms, signal) => {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      return reject(new Error("Sleep aborted"));
+    }
 
+    const timeout = setTimeout(resolve, ms);
+
+    // Listen for abort signal and clean up
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeout);
+        reject(new Error("Sleep aborted"));
+      },
+      { once: true }
+    );
+  });
+};
 function crc32(str) {
   const crcTable = [];
   for (let i = 0; i < 256; i++) {
@@ -349,7 +365,7 @@ function updateSessionCookiesFromCookie(session, cookie) {
   console.log("更新后的 headers.Cookie:", session.defaults.headers.Cookie); // 调试
 }
 
-module.exports = {
+export {
   sign,
   getA1AndWebId,
   getImgUrlByTraceId,
@@ -368,4 +384,5 @@ module.exports = {
   cookieStrToCookieDict,
   cookieJarToCookieStr,
   updateSessionCookiesFromCookie,
+  sleep,
 };

@@ -66,4 +66,4 @@ class Note {
   }
 }
 
-module.exports = { FeedType, NoteType, SearchSortType, SearchNoteType, Note };
+export { FeedType, NoteType, SearchSortType, SearchNoteType, Note };

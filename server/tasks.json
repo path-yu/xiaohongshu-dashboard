@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1741359272899-5r2qdjfej",
+    "type": "search",
+    "status": "running",
+    "keywords": [
+      "比特币"
+    ],
+    "sortType": 1,
+    "comments": [
+      "请问这个在哪里可以买到呢？看起来很不错！",
+      "内容很有深度，我学到了很多。特别是关于第二点的分析非常到位，期待更多类似的分享！"
+    ],
+    "useRandomComment": true,
+    "useRandomEmoji": true,
+    "minDelay": 2,
+    "maxDelay": 4,
+    "maxComments": 50,
+    "completedComments": 13,
+    "triggerType": "immediate",
+    "createdAt": "2025-03-07T14:54:32.899Z",
+    "updatedAt": "2025-03-08T16:30:22.886Z"
+  }
+]

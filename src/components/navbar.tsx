@@ -1,7 +1,7 @@
 "use client";
-
-import * as React from "react";
 import AppBar from "@mui/material/AppBar";
+import React from "react";
+
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -22,7 +22,7 @@ import {
 import CommentIcon from "@mui/icons-material/Comment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import SyncIcon from "@mui/icons-material/Sync";
 import { useCommentStore } from "../store/comment-store";
 import { useLocation } from "react-router-dom";
 import { usePlaywright } from "../contexts/playwright.context";
@@ -37,7 +37,7 @@ export default function Navbar() {
     statusMessage,
     startBrowser,
     stopBrowser,
-    checkStatus,
+    reconnect,
   } = usePlaywright();
   const { currentPosts } = usePostContext();
 
@@ -86,6 +86,8 @@ export default function Navbar() {
         return "warning";
       case "stopped":
         return "error";
+      case "disconnected":
+        return "default";
       default:
         return "default";
     }
@@ -183,15 +185,15 @@ export default function Navbar() {
           >
             停止
           </Button>
-          <Tooltip title="刷新状态">
+          <Tooltip title="重新连接状态监控">
             <Button
-              onClick={checkStatus}
+              onClick={reconnect}
               disabled={
                 playwrightStatus === "loading" ||
                 playwrightStatus === "checking"
               }
             >
-              <RefreshIcon fontSize="small" />
+              <SyncIcon fontSize="small" />
             </Button>
           </Tooltip>
         </ButtonGroup>

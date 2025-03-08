@@ -21,12 +21,14 @@ import {
   Divider,
   Chip,
   Grid,
+  Paper,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import type { CommentTemplate } from "../types";
 import { useToast } from "../contexts/toast-context";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<CommentTemplate[]>([]);
@@ -40,6 +42,12 @@ export default function TemplatesPage() {
   // Form state
   const [templateName, setTemplateName] = useState("");
   const [templateContent, setTemplateContent] = useState("");
+
+  // Update the state for parsed templates and add a single title field
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [parsedTemplates, setParsedTemplates] = useState<string[]>([]);
+  const [bulkTemplateTitle, setBulkTemplateTitle] = useState("");
 
   // Load templates from localStorage on component mount
   useEffect(() => {
@@ -79,6 +87,9 @@ export default function TemplatesPage() {
   }, []);
 
   // Save templates to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("comment_templates", JSON.stringify(templates));
+  }, [templates]);
 
   const handleAddTemplate = () => {
     setCurrentTemplate(null);
@@ -105,10 +116,6 @@ export default function TemplatesPage() {
       setTemplates(templates.filter((t) => t.id !== templateToDelete));
       setDeleteDialogOpen(false);
       setTemplateToDelete(null);
-      localStorage.setItem(
-        "comment_templates",
-        JSON.stringify(templates.filter((t) => t.id !== templateToDelete))
-      );
 
       if (templateToRemove) {
         showToast(`Template "${templateToRemove.name}" deleted`, "info");
@@ -137,15 +144,69 @@ export default function TemplatesPage() {
         content: templateContent,
       };
       setTemplates([...templates, newTemplate]);
-      localStorage.setItem(
-        "comment_templates",
-        JSON.stringify([...templates, newTemplate])
-      );
       showToast(`Template "${templateName}" created successfully`, "success");
     }
 
     setDialogOpen(false);
   };
+
+  // Update the parse function to just store the content strings
+  const handleParseBulkImport = () => {
+    if (!bulkImportText.trim()) {
+      showToast("请输入要导入的评论内容", "error");
+      return;
+    }
+
+    // Split by "/" and filter out empty strings
+    const comments = bulkImportText
+      .split("/")
+      .map((comment) => comment.trim())
+      .filter((comment) => comment.length > 0);
+
+    if (comments.length === 0) {
+      showToast("未找到有效的评论内容", "error");
+      return;
+    }
+
+    setParsedTemplates(comments);
+  };
+
+  // Update the save function to use the single title
+  const handleSaveParsedTemplates = () => {
+    // Check if title is provided
+    if (!bulkTemplateTitle.trim()) {
+      showToast("请输入模板标题", "error");
+      return;
+    }
+
+    // Create new templates with numbered titles
+    const newTemplates = parsedTemplates.map((content, index) => {
+      const name =
+        parsedTemplates.length > 1
+          ? `${bulkTemplateTitle} ${index + 1}`
+          : bulkTemplateTitle;
+
+      return {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+        name,
+        content,
+      };
+    });
+
+    // Add to existing templates
+    setTemplates([...templates, ...newTemplates]);
+
+    // Close dialog and reset state
+    setImportDialogOpen(false);
+    setBulkImportText("");
+    setParsedTemplates([]);
+    setBulkTemplateTitle("");
+
+    showToast(`成功导入 ${newTemplates.length} 个模板`, "success");
+  };
+
+  // Remove the function to update individual template names since we no longer need it
+  // Delete: const handleUpdateParsedTemplateName = ...
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -160,14 +221,24 @@ export default function TemplatesPage() {
             }}
           >
             <Typography variant="h5">Comment Templates</Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={handleAddTemplate}
-            >
-              Add Template
-            </Button>
+            <Box>
+              <Button
+                variant="outlined"
+                startIcon={<FileUploadIcon />}
+                onClick={() => setImportDialogOpen(true)}
+                sx={{ mr: 2 }}
+              >
+                批量导入
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={handleAddTemplate}
+              >
+                Add Template
+              </Button>
+            </Box>
           </Box>
         </Grid>
 
@@ -326,6 +397,99 @@ export default function TemplatesPage() {
           >
             Save
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <Dialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>批量导入评论模板</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" paragraph sx={{ mt: 1 }}>
+            请输入多个评论内容，使用 / 符号分隔不同的评论。
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={8}
+            variant="outlined"
+            placeholder="例如：这个太棒了！/请问在哪里可以买到？/非常喜欢这个内容"
+            value={bulkImportText}
+            onChange={(e) => setBulkImportText(e.target.value)}
+            sx={{ mb: 3 }}
+          />
+
+          {parsedTemplates.length > 0 && (
+            <>
+              <TextField
+                fullWidth
+                label="模板标题"
+                value={bulkTemplateTitle}
+                onChange={(e) => setBulkTemplateTitle(e.target.value)}
+                sx={{ mb: 2 }}
+                required
+                error={!bulkTemplateTitle.trim()}
+                helperText={
+                  !bulkTemplateTitle.trim()
+                    ? "请输入模板标题"
+                    : parsedTemplates.length > 1
+                    ? `将自动生成: ${bulkTemplateTitle} 1, ${bulkTemplateTitle} 2, ...`
+                    : ""
+                }
+              />
+
+              <Typography variant="subtitle2" gutterBottom>
+                已解析 {parsedTemplates.length} 条评论:
+              </Typography>
+
+              <Box sx={{ maxHeight: "250px", overflow: "auto", mb: 2 }}>
+                {parsedTemplates.map((content, index) => (
+                  <Paper
+                    key={index}
+                    variant="outlined"
+                    sx={{ p: 2, mb: 1, bgcolor: "background.default" }}
+                  >
+                    <Typography variant="body2">{content}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setImportDialogOpen(false);
+              setBulkImportText("");
+              setParsedTemplates([]);
+              setBulkTemplateTitle("");
+            }}
+          >
+            取消
+          </Button>
+          {parsedTemplates.length === 0 ? (
+            <Button
+              onClick={handleParseBulkImport}
+              variant="contained"
+              color="primary"
+            >
+              解析评论
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSaveParsedTemplates}
+              variant="contained"
+              color="primary"
+              disabled={!bulkTemplateTitle.trim()}
+            >
+              保存全部模板
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
