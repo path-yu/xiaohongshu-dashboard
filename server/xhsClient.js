@@ -9,6 +9,7 @@ import {
   SearchSortType,
   SearchNoteType,
   Note,
+  getSortType,
 } from "./enums.js"; // 需要加 `.js` 扩展名
 
 import {
@@ -162,7 +163,7 @@ class XhsClient {
         page,
         page_size,
         search_id: getSearchId(), // 假设 getSearchId 已定义在 help.js 中
-        sort: sort,
+        sort: getSortType(sort),
         note_type: note_type,
       };
       return await this.post(uri, data);
@@ -303,10 +304,10 @@ class XhsClient {
       );
     }
   }
-  async comment_note(note_id, content) {
+  async comment_note(note_id, content, xsec_token) {
     try {
       const uri = "/api/sns/web/v1/comment/post";
-      const data = { note_id, content, at_users: [] };
+      const data = { note_id, content, at_users: [], xsec_token: xsec_token };
       return await this.post(uri, data);
     } catch (error) {
       throw new DataFetchError(

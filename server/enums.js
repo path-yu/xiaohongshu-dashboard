@@ -20,10 +20,14 @@ const NoteType = {
 
 const SearchSortType = {
   GENERAL: "general",
-  MOST_POPULAR: "popularity_descending",
   LATEST: "time_descending",
+  MOST_POPULAR: "popularity_descending",
 };
-
+export function getSortType(sort) {
+  if (sort == 0) return SearchSortType.GENERAL;
+  if (sort == 1) return SearchSortType.LATEST;
+  if (sort == 2) return SearchSortType.MOST_POPULAR;
+}
 const SearchNoteType = {
   ALL: 0,
   VIDEO: 1,

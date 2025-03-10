@@ -1,4 +1,3 @@
-"use client";
 import AppBar from "@mui/material/AppBar";
 import React from "react";
 
@@ -9,6 +8,8 @@ import Badge from "@mui/material/Badge";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import AccountCircle from "@mui/icons-material/AccountCircle";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import {
   Box,
   Button,
@@ -25,8 +26,9 @@ import StopIcon from "@mui/icons-material/Stop";
 import SyncIcon from "@mui/icons-material/Sync";
 import { useCommentStore } from "../store/comment-store";
 import { useLocation } from "react-router-dom";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 import { usePostContext } from "../contexts/post-context";
+import { useTheme } from "../contexts/theme-context";
 
 export default function Navbar() {
   const location = useLocation();
@@ -40,6 +42,7 @@ export default function Navbar() {
     reconnect,
   } = usePlaywright();
   const { currentPosts } = usePostContext();
+  const { mode, toggleTheme } = useTheme();
 
   // Determine if all current posts are selected
   const allSelected = React.useMemo(() => {
@@ -71,6 +74,8 @@ export default function Navbar() {
         return "Comment Templates";
       case "/search":
         return "Search Posts";
+      case "/auto-action":
+        return "Auto Action";
       default:
         return "Dashboard";
     }
@@ -137,6 +142,17 @@ export default function Navbar() {
               sx={{ mr: 2 }}
             />
           )}
+
+        {/* Theme Toggle Button */}
+        <Tooltip
+          title={
+            mode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"
+          }
+        >
+          <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 1 }}>
+            {mode === "light" ? <DarkModeIcon /> : <LightModeIcon />}
+          </IconButton>
+        </Tooltip>
 
         {/* Playwright Status */}
         <Tooltip title={statusMessage}>

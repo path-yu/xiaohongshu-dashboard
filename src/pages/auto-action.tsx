@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Card,
@@ -58,13 +58,15 @@ import {
   Home as HomeIcon,
   Schedule as ScheduleIcon,
   Loop as LoopIcon,
+  Notifications as NotificationsIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { format } from "date-fns";
 import { useToast } from "../contexts/toast-context";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 import CommentModal from "../components/comment-modal";
 import { useCommentStore } from "../store/comment-store";
 import type { CommentTemplate } from "../types";
@@ -75,13 +77,16 @@ import {
   type CommentTask,
   type CommentLog,
   type CreateTaskRequest,
+  type UpdateTaskRequest,
   createTask,
+  updateTask,
   getTasks,
   updateTaskStatus,
   deleteTask,
   getTaskLogs,
   exportLogsAsCsv,
   downloadCsv,
+  subscribeToTaskUpdates,
 } from "../services/auto-action-service";
 import { SearchSortType, SearchNoteType } from "../services/search-service";
 
@@ -115,11 +120,19 @@ export default function AutoActionPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [templates, setTemplates] = useState<CommentTemplate[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sseConnected, setSseConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [taskNotification, setTaskNotification] = useState<{
+    show: boolean;
+    message: string;
+    taskId?: string;
+  }>({ show: false, message: "" });
   const { showToast } = useToast();
   const { status: playwrightStatus } = usePlaywright();
   const { isCommentModalOpen } = useCommentStore();
@@ -137,12 +150,84 @@ export default function AutoActionPage() {
     maxDelay: 120,
     maxComments: 50,
     triggerType: TriggerType.IMMEDIATE,
+    executeOnStartup: false, // 服务开机是否立即执行
+    rescheduleAfterUpdate: true, // 修改任务参数后是否立即重新调度
   });
-  const [customComment, setCustomComment] = useState("");
-  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
-  const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
 
-  // Load tasks
+  // Edit task form state
+  const [editTask, setEditTask] = useState<UpdateTaskRequest>({
+    id: "",
+    type: TaskType.SEARCH,
+    keywords: [],
+    sortType: SearchSortType.LATEST,
+    noteType: SearchNoteType.ALL,
+    comments: [],
+    useRandomComment: true,
+    useRandomEmoji: true,
+    minDelay: 30,
+    maxDelay: 120,
+    maxComments: 50,
+    triggerType: TriggerType.IMMEDIATE,
+    executeOnStartup: false, // 服务开机是否立即执行
+    rescheduleAfterUpdate: true, // 修改任务参数后是否立即重新调度
+  });
+
+  const [customComment, setCustomComment] = useState("");
+  const [editCustomComment, setEditCustomComment] = useState("");
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [editSelectedTemplateIds, setEditSelectedTemplateIds] = useState<
+    string[]
+  >([]);
+  const [scheduleDate, setScheduleDate] = useState<Date | null>(new Date());
+  const [editScheduleDate, setEditScheduleDate] = useState<Date | null>(
+    new Date()
+  );
+
+  // Function to handle SSE task updates
+  const handleTaskUpdate = useCallback(
+    (updatedTasks: CommentTask[]) => {
+      setTasks(updatedTasks);
+      setLastUpdate(new Date());
+      setSseConnected(true);
+
+      // Update selected task if it exists in the updated tasks
+      if (selectedTask) {
+        const updatedSelectedTask = updatedTasks.find(
+          (task) => task.id === selectedTask.id
+        );
+        if (updatedSelectedTask) {
+          // Check if the task has changed status
+          if (updatedSelectedTask.status !== selectedTask.status) {
+            setTaskNotification({
+              show: true,
+              message: `任务 "${updatedSelectedTask.id}" 状态已更新为 ${updatedSelectedTask.status}`,
+              taskId: updatedSelectedTask.id,
+            });
+
+            // Auto-hide notification after 5 seconds
+            setTimeout(() => {
+              setTaskNotification((prev) =>
+                prev.taskId === updatedSelectedTask.id
+                  ? { show: false, message: "" }
+                  : prev
+              );
+            }, 5000);
+          }
+
+          setSelectedTask(updatedSelectedTask);
+        }
+      }
+    },
+    [selectedTask]
+  );
+  // Connect to SSE for real-time updates
+  useEffect(() => {
+    const cleanup = subscribeToTaskUpdates(handleTaskUpdate);
+    // Clean up SSE connection on unmount
+    return cleanup;
+  }, []);
+
+  // Load tasks on first load (backup if SSE fails)
   const fetchTasks = async () => {
     setLoading(true);
     setError(null);
@@ -162,41 +247,6 @@ export default function AutoActionPage() {
       setLoading(false);
     }
   };
-  useEffect(() => {
-    // Establish SSE connection
-    const eventSource = new EventSource(
-      "http://localhost:3000/api/auto-action/tasks/sse"
-    );
-
-    // Handle incoming messages (updated task list)
-    eventSource.onmessage = (event) => {
-      try {
-        const updatedTasks = JSON.parse(event.data);
-        setTasks(updatedTasks);
-        setError(null); // Clear any previous errors
-      } catch (err) {
-        console.error("Failed to parse SSE data:", err);
-        setError("Failed to parse task data");
-      }
-    };
-
-    // Handle connection errors
-    eventSource.onerror = () => {
-      console.error("SSE connection error");
-      setError("Lost connection to server. Retrying...");
-      // EventSource automatically retries, so no need to reconnect manually
-    };
-
-    // Cleanup on component unmount
-    return () => {
-      eventSource.close();
-      console.log("SSE connection closed");
-    };
-  }, []); // Empt
-  // Initial load of tasks
-  useEffect(() => {
-    fetchTasks();
-  }, []);
 
   // Load task logs when a task is selected
   useEffect(() => {
@@ -339,16 +389,135 @@ export default function AutoActionPage() {
         maxDelay: 120,
         maxComments: 50,
         triggerType: TriggerType.IMMEDIATE,
+        executeOnStartup: false,
+        rescheduleAfterUpdate: true,
       });
       setCustomComment("");
       setSelectedTemplateIds([]);
       setScheduleDate(new Date());
-
-      // Refresh tasks list
       fetchTasks();
     } catch (err) {
       console.error("Error creating task:", err);
       showToast("Failed to create task", "error");
+    }
+  };
+
+  const handleEditTask = (task: CommentTask) => {
+    // 设置编辑表单的初始值
+    setEditTask({
+      id: task.id,
+      type: task.type,
+      keywords: task.keywords || [],
+      sortType: task.sortType || SearchSortType.LATEST,
+      noteType: task.noteType || SearchNoteType.ALL,
+      comments: task.comments,
+      useRandomComment: task.useRandomComment,
+      useRandomEmoji: task.useRandomEmoji,
+      minDelay: task.minDelay,
+      maxDelay: task.maxDelay,
+      maxComments: task.maxComments,
+      triggerType: task.triggerType,
+      scheduleTime: task.scheduleTime,
+      intervalMinutes: task.intervalMinutes,
+      executeOnStartup: task.executeOnStartup || false,
+      rescheduleAfterUpdate:
+        task.rescheduleAfterUpdate !== undefined
+          ? task.rescheduleAfterUpdate
+          : true,
+    });
+
+    // 设置自定义评论和模板
+    setEditCustomComment("");
+    const templateIds: string[] = [];
+
+    // 尝试匹配评论内容与模板
+    task.comments.forEach((comment) => {
+      const matchedTemplate = templates.find((t) => t.content === comment);
+      if (matchedTemplate) {
+        templateIds.push(matchedTemplate.id);
+      } else {
+        // 如果没有匹配的模板，则认为是自定义评论
+        setEditCustomComment(comment);
+      }
+    });
+
+    setEditSelectedTemplateIds(templateIds);
+
+    // 设置计划时间
+    if (task.scheduleTime) {
+      setEditScheduleDate(new Date(task.scheduleTime));
+    } else {
+      setEditScheduleDate(new Date());
+    }
+
+    // 打开编辑对话框
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateTask = async () => {
+    // 验证表单
+    if (
+      editTask.type === TaskType.SEARCH &&
+      (!editTask.keywords || editTask.keywords.length === 0)
+    ) {
+      showToast("请输入至少一个搜索关键词", "error");
+      return;
+    }
+
+    if (editCustomComment === "" && editSelectedTemplateIds.length === 0) {
+      showToast("请添加至少一条评论或选择一个模板", "error");
+      return;
+    }
+
+    // 处理评论
+    const comments: string[] = [];
+
+    if (editCustomComment) {
+      comments.push(editCustomComment);
+    }
+
+    // 添加选中的模板
+    editSelectedTemplateIds.forEach((id) => {
+      const template = templates.find((t) => t.id === id);
+      if (template) {
+        comments.push(template.content);
+      }
+    });
+
+    // 处理计划时间
+    let scheduleTime: string | undefined;
+    if (editTask.triggerType === TriggerType.SCHEDULED && editScheduleDate) {
+      scheduleTime = editScheduleDate.toISOString();
+    }
+
+    // 创建更新任务对象
+    const taskToUpdate: UpdateTaskRequest = {
+      ...editTask,
+      comments,
+      scheduleTime,
+    };
+
+    try {
+      const response = await updateTask(taskToUpdate);
+
+      if (!response.success) {
+        throw new Error(response.error || response.message);
+      }
+
+      showToast("任务更新成功", "success");
+      setEditDialogOpen(false);
+      await fetchTasks();
+      // 如果当前选中的任务是被编辑的任务，更新选中的任务
+      if (
+        selectedTask &&
+        selectedTask.id === taskToUpdate.id &&
+        response.data
+      ) {
+        setSelectedTask(response.data);
+      }
+    } catch (err) {
+      console.error(`Error updating task ${taskToUpdate.id}:`, err);
+      showToast("更新任务失败", "error");
     }
   };
 
@@ -373,8 +542,8 @@ export default function AutoActionPage() {
         setTabValue(0); // Switch back to tasks list tab
       }
 
-      // Refresh tasks list
       fetchTasks();
+
       showToast("Task deleted successfully", "success");
     } catch (err) {
       console.error(`Error deleting task ${taskToDelete}:`, err);
@@ -395,8 +564,6 @@ export default function AutoActionPage() {
       if (!response.success) {
         throw new Error(response.error || response.message);
       }
-
-      // Fetch the latest task data from the server
       await fetchTasks();
 
       // If this is the selected task, update it with the latest data from the fetched tasks
@@ -459,6 +626,14 @@ export default function AutoActionPage() {
     );
   };
 
+  const handleEditTemplateToggle = (templateId: string) => {
+    setEditSelectedTemplateIds((prev) =>
+      prev.includes(templateId)
+        ? prev.filter((id) => id !== templateId)
+        : [...prev, templateId]
+    );
+  };
+
   const handleMinDelayChange = (_: Event, newValue: number | number[]) => {
     const minDelay = newValue as number;
     setNewTask((prev) => ({
@@ -471,6 +646,23 @@ export default function AutoActionPage() {
 
   const handleMaxDelayChange = (_: Event, newValue: number | number[]) => {
     setNewTask((prev) => ({
+      ...prev,
+      maxDelay: newValue as number,
+    }));
+  };
+
+  const handleEditMinDelayChange = (_: Event, newValue: number | number[]) => {
+    const minDelay = newValue as number;
+    setEditTask((prev) => ({
+      ...prev,
+      minDelay,
+      // Ensure max delay is always >= min delay
+      maxDelay: prev.maxDelay < minDelay ? minDelay : prev.maxDelay,
+    }));
+  };
+
+  const handleEditMaxDelayChange = (_: Event, newValue: number | number[]) => {
+    setEditTask((prev) => ({
       ...prev,
       maxDelay: newValue as number,
     }));
@@ -516,11 +708,26 @@ export default function AutoActionPage() {
   };
 
   const renderTaskControls = (task: CommentTask) => {
-    switch (task.status) {
-      case TaskStatus.RUNNING:
-        return (
+    return (
+      <Box sx={{ display: "flex" }}>
+        {/* 编辑按钮 */}
+        <Tooltip title="编辑">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditTask(task);
+            }}
+            color="primary"
+          >
+            <EditIcon />
+          </IconButton>
+        </Tooltip>
+
+        {/* 状态控制按钮 */}
+        {task.status === TaskStatus.RUNNING && (
           <>
-            <Tooltip title="Pause">
+            <Tooltip title="暂停">
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -532,7 +739,7 @@ export default function AutoActionPage() {
                 <PauseIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Stop">
+            <Tooltip title="停止">
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -545,11 +752,11 @@ export default function AutoActionPage() {
               </IconButton>
             </Tooltip>
           </>
-        );
-      case TaskStatus.PAUSED:
-        return (
+        )}
+
+        {task.status === TaskStatus.PAUSED && (
           <>
-            <Tooltip title="Resume">
+            <Tooltip title="继续">
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -561,7 +768,7 @@ export default function AutoActionPage() {
                 <PlayIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Stop">
+            <Tooltip title="停止">
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -574,12 +781,12 @@ export default function AutoActionPage() {
               </IconButton>
             </Tooltip>
           </>
-        );
-      case TaskStatus.ERROR:
-      case TaskStatus.COMPLETED:
-      case TaskStatus.IDLE:
-        return (
-          <Tooltip title="Start">
+        )}
+
+        {(task.status === TaskStatus.ERROR ||
+          task.status === TaskStatus.COMPLETED ||
+          task.status === TaskStatus.IDLE) && (
+          <Tooltip title="开始">
             <IconButton
               size="small"
               onClick={(e) => {
@@ -591,10 +798,23 @@ export default function AutoActionPage() {
               <PlayIcon />
             </IconButton>
           </Tooltip>
-        );
-      default:
-        return null;
-    }
+        )}
+
+        {/* 删除按钮 */}
+        <Tooltip title="删除">
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteTask(task.id);
+            }}
+            color="default"
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    );
   };
 
   // Helper function to format keywords for display
@@ -625,6 +845,16 @@ export default function AutoActionPage() {
                   Playwright 未运行，无法执行自动任务
                 </Alert>
               )}
+              {sseConnected && (
+                <Chip
+                  color="success"
+                  icon={<NotificationsIcon />}
+                  label={`实时更新已连接 ${
+                    lastUpdate ? `(${format(lastUpdate, "HH:mm:ss")})` : ""
+                  }`}
+                  sx={{ mr: 2 }}
+                />
+              )}
               <Button
                 variant="contained"
                 color="primary"
@@ -636,6 +866,16 @@ export default function AutoActionPage() {
               </Button>
             </Box>
           </Box>
+
+          {taskNotification.show && (
+            <Alert
+              severity="info"
+              sx={{ mb: 2 }}
+              onClose={() => setTaskNotification({ show: false, message: "" })}
+            >
+              {taskNotification.message}
+            </Alert>
+          )}
 
           <Tabs
             value={tabValue}
@@ -683,6 +923,8 @@ export default function AutoActionPage() {
                       <TableCell>状态</TableCell>
                       <TableCell>进度</TableCell>
                       <TableCell>触发方式</TableCell>
+                      <TableCell>开机执行</TableCell>
+                      <TableCell>更新重调度</TableCell>
                       <TableCell>创建时间</TableCell>
                       <TableCell>操作</TableCell>
                     </TableRow>
@@ -760,25 +1002,23 @@ export default function AutoActionPage() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(task.createdAt), "yyyy-MM-dd HH:mm")}
+                          {task.executeOnStartup ? (
+                            <Chip label="是" color="success" size="small" />
+                          ) : (
+                            <Chip label="否" color="default" size="small" />
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ display: "flex" }}>
-                            {renderTaskControls(task)}
-                            <Tooltip title="删除">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTask(task.id);
-                                }}
-                                color="default"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
+                          {task.rescheduleAfterUpdate !== false ? (
+                            <Chip label="是" color="success" size="small" />
+                          ) : (
+                            <Chip label="否" color="default" size="small" />
+                          )}
                         </TableCell>
+                        <TableCell>
+                          {format(new Date(task.createdAt), "yyyy-MM-dd HH:mm")}
+                        </TableCell>
+                        <TableCell>{renderTaskControls(task)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -801,14 +1041,7 @@ export default function AutoActionPage() {
                       }}
                     >
                       <Typography variant="h6">任务详情</Typography>
-                      <Box>
-                        {renderTaskControls(selectedTask)}
-                        <Tooltip title="刷新">
-                          <IconButton size="small" onClick={handleRefreshTasks}>
-                            <RefreshIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
+                      <Box>{renderTaskControls(selectedTask)}</Box>
                     </Box>
 
                     <Divider sx={{ mb: 2 }} />
@@ -863,9 +1096,9 @@ export default function AutoActionPage() {
                             <Box sx={{ mt: 1 }}>
                               {selectedTask.keywords &&
                               selectedTask.keywords.length > 0 ? (
-                                selectedTask.keywords.map((keyword, index) => (
+                                selectedTask.keywords.map((keyword) => (
                                   <Chip
-                                    key={index}
+                                    key={keyword}
                                     label={keyword}
                                     size="small"
                                     sx={{ mr: 1, mb: 1 }}
@@ -917,6 +1150,22 @@ export default function AutoActionPage() {
                         <Typography variant="subtitle2">延迟设置</Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.minDelay} - {selectedTask.maxDelay} 秒
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2">开机执行</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedTask.executeOnStartup ? "是" : "否"}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2">
+                          更新后重调度
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedTask.rescheduleAfterUpdate !== false
+                            ? "是"
+                            : "否"}
                         </Typography>
                       </Grid>
                       <Grid item xs={12}>
@@ -980,7 +1229,7 @@ export default function AutoActionPage() {
                         mb: 2,
                       }}
                     >
-                      <Typography variant="h6">错误日志</Typography>
+                      <Typography variant="h6">评论日志</Typography>
                       <Box>
                         <Button
                           variant="outlined"
@@ -1015,7 +1264,7 @@ export default function AutoActionPage() {
                     ) : taskLogs.length === 0 ? (
                       <Box sx={{ textAlign: "center", py: 3 }}>
                         <Typography variant="body2" color="text.secondary">
-                          暂无错误日志
+                          暂无评论日志
                         </Typography>
                       </Box>
                     ) : (
@@ -1171,7 +1420,7 @@ export default function AutoActionPage() {
                         {...params}
                         label="搜索关键词"
                         placeholder="输入关键词后按回车添加多个"
-                        helperText="可添加多个关键词，随机选择关键词搜索笔记数据"
+                        helperText="可添加多个关键词，每个关键词将创建单独的搜索任务"
                         fullWidth
                         required
                       />
@@ -1285,7 +1534,7 @@ export default function AutoActionPage() {
                 )}
               </Paper>
             </Grid>
-
+            {/* 
             <Grid item xs={12} md={6}>
               <FormControlLabel
                 control={
@@ -1318,8 +1567,7 @@ export default function AutoActionPage() {
                 }
                 label="随机插入表情"
               />
-            </Grid>
-
+            </Grid> */}
             <Grid item xs={12}>
               <Divider textAlign="left">执行设置</Divider>
             </Grid>
@@ -1429,6 +1677,31 @@ export default function AutoActionPage() {
                 helperText="任务将在达到此评论数后自动停止"
               />
             </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={newTask.executeOnStartup}
+                    onChange={(e) =>
+                      setNewTask({
+                        ...newTask,
+                        executeOnStartup: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="服务开机时立即执行此任务"
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ ml: 2 }}
+              >
+                启用此选项后，当服务重启时会自动调度执行此任务
+              </Typography>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -1444,6 +1717,363 @@ export default function AutoActionPage() {
             }
           >
             创建任务
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>编辑任务</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">任务类型</FormLabel>
+                <RadioGroup
+                  row
+                  value={editTask.type}
+                  onChange={(e) =>
+                    setEditTask({
+                      ...editTask,
+                      type: e.target.value as TaskType,
+                    })
+                  }
+                >
+                  <FormControlLabel
+                    value={TaskType.SEARCH}
+                    control={<Radio />}
+                    label="搜索评论"
+                  />
+                  <FormControlLabel
+                    value={TaskType.HOMEPAGE}
+                    control={<Radio />}
+                    label="首页评论"
+                  />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {editTask.type === TaskType.SEARCH && (
+              <>
+                <Grid item xs={12}>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    value={editTask.keywords || []}
+                    onChange={(_, newValue) => {
+                      setEditTask({ ...editTask, keywords: newValue });
+                    }}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          variant="outlined"
+                          label={option}
+                          {...getTagProps({ index })}
+                        />
+                      ))
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="搜索关键词"
+                        placeholder="输入关键词后按回车添加多个"
+                        helperText="可添加多个关键词，每个关键词将创建单独的搜索任务"
+                        fullWidth
+                        required
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>排序方式</InputLabel>
+                    <Select
+                      value={editTask.sortType}
+                      label="排序方式"
+                      onChange={(e) =>
+                        setEditTask({
+                          ...editTask,
+                          sortType: e.target.value as SearchSortType,
+                        })
+                      }
+                    >
+                      <MenuItem value={SearchSortType.GENERAL}>
+                        综合排序
+                      </MenuItem>
+                      <MenuItem value={SearchSortType.LATEST}>
+                        最新排序
+                      </MenuItem>
+                      <MenuItem value={SearchSortType.HOT}>最热排序</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>笔记类型</InputLabel>
+                    <Select
+                      value={editTask.noteType}
+                      label="笔记类型"
+                      onChange={(e) =>
+                        setEditTask({
+                          ...editTask,
+                          noteType: e.target.value as SearchNoteType,
+                        })
+                      }
+                    >
+                      <MenuItem value={SearchNoteType.ALL}>所有笔记</MenuItem>
+                      <MenuItem value={SearchNoteType.VIDEO}>视频笔记</MenuItem>
+                      <MenuItem value={SearchNoteType.IMAGE}>图文笔记</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </>
+            )}
+
+            <Grid item xs={12}>
+              <Divider textAlign="left">评论设置</Divider>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="自定义评论"
+                placeholder="输入自定义评论内容..."
+                value={editCustomComment}
+                onChange={(e) => setEditCustomComment(e.target.value)}
+                helperText="可以添加自定义评论，也可以选择下方的评论模板"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" gutterBottom>
+                评论模板
+              </Typography>
+              <Paper
+                variant="outlined"
+                sx={{ p: 2, maxHeight: 200, overflow: "auto" }}
+              >
+                {templates.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    没有可用的模板。请在模板页面创建模板。
+                  </Typography>
+                ) : (
+                  <Grid container spacing={1}>
+                    {templates.map((template) => (
+                      <Grid item xs={12} key={template.id}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={editSelectedTemplateIds.includes(
+                                template.id
+                              )}
+                              onChange={() =>
+                                handleEditTemplateToggle(template.id)
+                              }
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {template.name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {template.content}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Divider textAlign="left">执行设置</Divider>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">触发方式</FormLabel>
+                <RadioGroup
+                  row
+                  value={editTask.triggerType}
+                  onChange={(e) =>
+                    setEditTask({
+                      ...editTask,
+                      triggerType: e.target.value as TriggerType,
+                    })
+                  }
+                >
+                  <FormControlLabel
+                    value={TriggerType.IMMEDIATE}
+                    control={<Radio />}
+                    label="立即执行"
+                  />
+                  <FormControlLabel
+                    value={TriggerType.SCHEDULED}
+                    control={<Radio />}
+                    label="计划执行"
+                  />
+                  <FormControlLabel
+                    value={TriggerType.INTERVAL}
+                    control={<Radio />}
+                    label="定时执行"
+                  />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {editTask.triggerType === TriggerType.SCHEDULED && (
+              <Grid item xs={12} md={6}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    label="计划执行时间"
+                    value={editScheduleDate}
+                    onChange={(newValue) => setEditScheduleDate(newValue)}
+                    slotProps={{ textField: { fullWidth: true } }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+            )}
+
+            {editTask.triggerType === TriggerType.INTERVAL && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="执行间隔（分钟）"
+                  value={editTask.intervalMinutes || 60}
+                  onChange={(e) =>
+                    setEditTask({
+                      ...editTask,
+                      intervalMinutes: Number.parseInt(e.target.value),
+                    })
+                  }
+                  InputProps={{ inputProps: { min: 1 } }}
+                />
+              </Grid>
+            )}
+
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                最小延迟: {editTask.minDelay} 秒
+              </Typography>
+              <Slider
+                value={editTask.minDelay}
+                onChange={handleEditMinDelayChange}
+                min={1}
+                max={300}
+                valueLabelDisplay="auto"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography gutterBottom>
+                最大延迟: {editTask.maxDelay} 秒
+              </Typography>
+              <Slider
+                value={editTask.maxDelay}
+                onChange={handleEditMaxDelayChange}
+                min={editTask.minDelay}
+                max={600}
+                valueLabelDisplay="auto"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                type="number"
+                label="最大评论数"
+                value={editTask.maxComments}
+                onChange={(e) =>
+                  setEditTask({
+                    ...editTask,
+                    maxComments: Number.parseInt(e.target.value),
+                  })
+                }
+                InputProps={{ inputProps: { min: 1 } }}
+                helperText="任务将在达到此评论数后自动停止"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={editTask.executeOnStartup}
+                    onChange={(e) =>
+                      setEditTask({
+                        ...editTask,
+                        executeOnStartup: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="服务开机时立即执行此任务"
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ ml: 2 }}
+              >
+                启用此选项后，当服务重启时会自动调度执行此任务
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={editTask.rescheduleAfterUpdate}
+                    onChange={(e) =>
+                      setEditTask({
+                        ...editTask,
+                        rescheduleAfterUpdate: e.target.checked,
+                      })
+                    }
+                  />
+                }
+                label="修改任务参数后立即重新调度"
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ ml: 2 }}
+              >
+                启用此选项后，当任务参数被修改时会立即重新调度执行任务
+              </Typography>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>取消</Button>
+          <Button
+            onClick={handleUpdateTask}
+            variant="contained"
+            color="primary"
+            disabled={
+              (editTask.type === TaskType.SEARCH &&
+                (!editTask.keywords || editTask.keywords.length === 0)) ||
+              (editCustomComment === "" && editSelectedTemplateIds.length === 0)
+            }
+          >
+            更新任务
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,5 +1,5 @@
 import express from "express";
-import path from "path";
+import path, { parse } from "path";
 import { exec } from "child_process";
 import { chromium } from "playwright";
 import fs from "fs";
@@ -29,7 +29,7 @@ let xhs_client;
 // 全局变量存储 a1 和 Playwright 实例
 let A1 = "";
 let webId = "";
-
+let startUp = false;
 let browser = null;
 let context = null;
 let page = null;
@@ -63,7 +63,11 @@ export const initializeDatabases = async () => {
 
     // Reset task statuses on initialization
     tasksDb.data = tasksDb.data.map((task) => {
-      if (task.status === "running" || task.status === "paused") {
+      if (
+        task.status === "running" ||
+        task.status === "paused" ||
+        task.status === "error"
+      ) {
         return {
           ...task,
           status: "idle",
@@ -90,171 +94,168 @@ const getRandomDelay = (min, max) => {
 // Function to get random comment
 const getRandomComment = (comments, useRandomEmoji) => {
   const comment = comments[Math.floor(Math.random() * comments.length)];
-  const emojis = ["👍", "❤️", "😊", "🔥", "👏"];
-  return useRandomEmoji
-    ? `${comment} ${emojis[Math.floor(Math.random() * emojis.length)]}`
-    : comment;
+  // const emojis = ["👍", "❤️", "😊", "🔥", "👏"];
+  // return useRandomEmoji
+  //   ? `${comment} ${emojis[Math.floor(Math.random() * emojis.length)]}`
+  //   : comment;
+  return comment;
 };
-
-// Function to fetch all search notes
-const fetchAllSearchNotes = async (
-  keywords,
-  sortType,
-  maxNotes = 100,
-  note_type = 0
-) => {
+const getRandomKeyword = (keywords) => {
   if (!Array.isArray(keywords) || keywords.length === 0) {
-    throw new Error("Keywords must be a non-empty array");
+    throw new Error("task.keywords must be a non-empty array");
   }
-  let allNotes = [];
-  let page = 1;
-  const pageSize = 20;
-  while (allNotes.length < maxNotes) {
-    // Randomly select one keyword from the array
-    const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
-    try {
-      const result = await xhs_client.get_note_by_keyword(
-        randomKeyword,
-        page,
-        pageSize,
-        sortType,
-        note_type
-      );
-
-      const notes = result.items || [];
-      allNotes = allNotes.concat(notes.slice(0, maxNotes - allNotes.length)); // Limit notes added
-      if (notes.length < pageSize) break; // No more pages
-      page += 1;
-    } catch (error) {
-      console.error(
-        `Failed to fetch notes for keyword ${keyword}, page ${page}:`,
-        error
-      );
-      break;
-    }
-  }
-
-  return allNotes;
+  const randomIndex = Math.floor(Math.random() * keywords.length);
+  return keywords[randomIndex];
 };
-
-// Function to execute a task
-// Function to fetch homepage notes
-const fetchHomepageNotes = async () => {
+// Function to fetch all search notes
+const fetchSearchNotes = async (keyword, sortType, note_type = 0) => {
   try {
-    const result = await xhs_client.get_home_feed(FeedType.RECOMMEND);
-    return result.items || []; // Assuming items contains the notes
+    // Simulate fetching a single note (modify this based on your actual API)
+    const response = await xhs_client.get_note_by_keyword(
+      keyword,
+      1,
+      20,
+      sortType,
+      note_type
+    );
+    return response.items || []; // Return an array with one note or empty if none
   } catch (error) {
-    console.error("Failed to fetch homepage notes:", error);
+    console.error(`Failed to fetch note for keywords "${keyword}":`, error);
     return [];
   }
 };
-
-// Function to execute a task with pause support
-// Function to execute a task with pause support and direct status updates
 const executeTask = async (task) => {
-  if (task.status !== "running" || task.completedComments >= task.maxComments)
+  if (task.status !== "running" || task.completedComments >= task.maxComments) {
     return;
-
+  }
   const controller = new AbortController();
   immediateTaskControllers.set(task.id, controller);
 
   try {
-    let notes = [];
-    if (task.type === "search") {
-      let maxLength = task.maxComments - task.completedComments;
+    // Read logs once to get commented note IDs
+    await logsDb.read();
+    const commentedNoteIds = new Set(logsDb.data.map((log) => log.noteId));
 
-      notes = await fetchAllSearchNotes(
-        task.keywords,
-        task.sortType,
-        maxLength
-      );
-    } else if (task.type === "homepage") {
-      notes = await fetchHomepageNotes();
-    }
-    console.log(notes.length, "task");
-
-    await tasksDb.read();
+    // Track fetched note IDs to avoid duplicates
+    const fetchedNoteIds = new Set();
     let currentTask = tasksDb.data.find((t) => t.id === task.id);
-    if (!currentTask) return; // Task might have been deleted
-
-    for (const note of notes) {
-      // Check abort signal and status before each iteration
-      if (controller.signal.aborted) {
-        console.log(`Task ${task.id} aborted`);
-        break;
-      }
-      // Check status and completion condition
-      if (
-        currentTask.status !== "running" ||
-        currentTask.completedComments >= currentTask.maxComments
-      ) {
-        break;
-      }
-
-      const comment = getRandomComment(task.comments, task.useRandomEmoji);
-      try {
-        await sleep(getRandomDelay(task.minDelay, task.maxDelay) * 1000);
-        currentTask.completedComments += 1; // Increment directly
-        // await xhs_client.comment_note(note.id, comment);
-        // await addCommentLog(
-        //   task.id,
-        //   note.id,
-        //   note.title || "Unknown Title",
-        //   comment,
-        //   true
-        // );
-        console.log(
-          `Commented on note ${note.id} for task ${task.id}`,
-          getRandomDelay(task.minDelay, task.maxDelay) * 1000
-        );
-
-        // Update task status if maxComments reached
-        if (currentTask.completedComments >= currentTask.maxComments) {
-          currentTask.status = "completed";
-          console.log(`Task ${task.id} completed: reached maxComments`);
-        }
-      } catch (error) {
-        await addCommentLog(
-          task.id,
-          note.id,
-          note.note_card.display_title || "Unknown Title",
-          comment,
-          false,
-          error.message
-        );
-        console.error(
-          `Failed to comment on note ${note.id} for task ${task.id}:`,
-          error
-        );
-      }
-
-      // Persist changes to the database
-      await tasksDb.read();
-      const taskIndex = tasksDb.data.findIndex((t) => t.id === task.id);
-      if (taskIndex !== -1) {
-        tasksDb.data[taskIndex] = {
-          ...currentTask,
-          updatedAt: new Date().toISOString(),
-        };
-        await tasksDb.write();
-        await broadcastTaskUpdate(); // Broadcast update after completedComments changes
-      }
-    }
-
-    // Final check after loop
-    await tasksDb.read();
-    currentTask = tasksDb.data.find((t) => t.id === task.id);
-    if (
-      currentTask &&
-      currentTask.completedComments >= currentTask.maxComments &&
-      currentTask.status !== "completed"
+    // Outer loop to fetch notes until maxComments is reached
+    while (
+      currentTask.status === "running" &&
+      currentTask.completedComments < currentTask.maxComments
     ) {
-      currentTask.status = "completed";
-      tasksDb.data[taskIndex] = {
-        ...currentTask,
-        updatedAt: new Date().toISOString(),
-      };
-      await tasksDb.write();
+      let notes = [];
+
+      // Fetch notes based on task type with a random keyword
+      if (task.type === "search") {
+        const randomKeyword = getRandomKeyword(task.keywords); // Get random keyword
+        notes = await fetchSearchNotes(
+          randomKeyword, // Pass random keyword
+          task.sortType,
+          task.noteType
+        );
+      } else if (task.type === "homepage") {
+        notes = await fetchHomepageNotes(); // No keywords for homepage
+      }
+      console.log("notes", notes);
+
+      if (!notes.length) {
+        console.log(`No more notes available for task ${task.id}`);
+        break; // Exit if no notes are fetched
+      }
+
+      // Filter out already fetched notes
+      notes = notes.filter((note) => !fetchedNoteIds.has(note.id));
+      if (!notes.length) {
+        console.log(`All fetched notes were duplicates for task ${task.id}`);
+        continue; // Fetch next set if all notes were duplicates
+      }
+
+      // Add all fetched note IDs to the set
+      notes.forEach((note) => fetchedNoteIds.add(note.id));
+
+      // Process each note in the fetched set
+      await tasksDb.read();
+      currentTask = tasksDb.data.find((t) => t.id === task.id);
+      if (!currentTask) {
+        console.log(`Task ${task.id} not found in database`);
+        break;
+      }
+
+      for (const note of notes) {
+        if (controller.signal.aborted) {
+          currentTask.status = "paused";
+          await updateTaskData(task.id, "status", "paused");
+          console.log(`Task ${task.id} aborted`);
+          break;
+        }
+
+        if (
+          currentTask.status !== "running" ||
+          currentTask.completedComments >= currentTask.maxComments
+        ) {
+          console.log(
+            `Task ${task.id} stopped: status=${currentTask.status}, completed=${currentTask.completedComments}`
+          );
+          break;
+        }
+
+        // Skip if already commented
+        if (commentedNoteIds.has(note.id)) {
+          console.log(`Note ${note.id} already commented, skipping`);
+          continue;
+        }
+
+        const comment = getRandomComment(task.comments, task.useRandomEmoji);
+        try {
+          await sleep(getRandomDelay(task.minDelay, task.maxDelay) * 1000);
+          console.log(`Commenting on note ${note.id} for task ${task.id}`);
+
+          // // Perform the comment action
+          // await xhs_client.comment_note(note.id, comment, note.xsec_token);
+
+          // // Update task progress
+          // currentTask.completedComments += 1;
+          // commentedNoteIds.add(note.id); // Add to commented set
+          // await updateTaskData(
+          //   task.id,
+          //   "completedComments",
+          //   currentTask.completedComments
+          // );
+          // broadcastTaskUpdate();
+
+          // // Log the successful comment
+          // await addCommentLog(
+          //   task.id,
+          //   note.id,
+          //   note.note_card?.display_title || "Unknown Title",
+          //   comment,
+          //   true
+          // );
+
+          // Check if maxComments is reached
+          if (currentTask.completedComments >= currentTask.maxComments) {
+            currentTask.status = "completed";
+            await updateTaskData(task.id, "status", "completed");
+            console.log(`Task ${task.id} completed: reached maxComments`);
+            break;
+          }
+        } catch (error) {
+          // Log failed comment attempt but continue with next note
+          await addCommentLog(
+            task.id,
+            note.id,
+            note.note_card?.display_title || "Unknown Title",
+            comment,
+            false,
+            error.message
+          );
+          console.error(
+            `Failed to comment on note ${note.id} for task ${task.id}:`,
+            error
+          );
+        }
+      }
     }
   } catch (error) {
     console.error(`Task ${task.id} execution failed:`, error);
@@ -267,79 +268,113 @@ const executeTask = async (task) => {
       await tasksDb.write();
     }
   } finally {
-    immediateTaskControllers.delete(task.id); // Clean up
+    immediateTaskControllers.delete(task.id); // Clean up controller
   }
 };
+// Function to fetch homepage notes
+const fetchHomepageNotes = async () => {
+  try {
+    const result = await xhs_client.get_home_feed(FeedType.RECOMMEND);
+    return result.items || []; // Assuming items contains the notes
+  } catch (error) {
+    console.error("Failed to fetch homepage notes:", error);
+    return [];
+  }
+};
+const updateTaskData = async (id, key, val) => {
+  // Persist changes to the database
+  await tasksDb.read();
+  let currentTask = tasksDb.data.find((t) => t.id === id);
+  const taskIndex = tasksDb.data.findIndex((t) => t.id === id);
+  if (taskIndex !== -1) {
+    tasksDb.data[taskIndex] = {
+      ...currentTask,
+      [key]: val,
+      updatedAt: new Date().toISOString(),
+    };
+    await tasksDb.write();
+  }
+};
+// Function to execute a task with pause support and direct status updates
 
 // Task scheduler with pause support
-const scheduleTasks = () => {
-  tasksDb.read().then(() => {
-    tasksDb.data.forEach((task) => {
-      const existingCronJob = cronJobs.get(task.id);
+const scheduleTasks = async ({ startUp = false, tasks = [] }) => {
+  let taskList = [];
+  if (tasks.length) {
+    taskList = tasks;
+  } else {
+    await tasksDb.read();
+    taskList = tasksDb.data;
+  }
+  for (let task of taskList) {
+    if (
+      task.triggerType === "immediate" &&
+      startUp === true &&
+      !task.executeOnStartup
+    ) {
+      console.log("skip");
 
-      // Stop cron job if task is no longer running (for interval tasks)
-      if (existingCronJob && task.status !== "running") {
-        existingCronJob.stop();
-        cronJobs.delete(task.id);
-        console.log(`Stopped cron job for task ${task.id}`);
+      break;
+    }
+    const existingCronJob = cronJobs.get(task.id);
+    // Stop cron job if task is no longer running (for interval tasks)
+    if (existingCronJob && task.status !== "running") {
+      existingCronJob.stop();
+      cronJobs.delete(task.id);
+      console.log(`Stopped cron job for task ${task.id}`);
+    }
+    // Handle immediate task pausing
+    if (task.triggerType === "immediate" && task.status === "paused") {
+      const controller = immediateTaskControllers.get(task.id);
+      if (controller) {
+        controller.abort(); // Attempt to abort, though limited by async nature
+        immediateTaskControllers.delete(task.id);
+        console.log(`Paused immediate task ${task.id}`);
       }
-
-      // Handle immediate task pausing
-      if (task.triggerType === "immediate" && task.status === "paused") {
-        const controller = immediateTaskControllers.get(task.id);
-        if (controller) {
-          controller.abort(); // Attempt to abort, though limited by async nature
-          immediateTaskControllers.delete(task.id);
-          console.log(`Paused immediate task ${task.id}`);
-        }
-      }
-      if (
-        task.status === "running" &&
-        task.completedComments >= task.maxComments
-      ) {
-        task.completedComments = 0;
-        task.error = undefined;
+    }
+    if (
+      task.status === "running" &&
+      task.completedComments >= task.maxComments
+    ) {
+      task.completedComments = 0;
+      task.error = undefined;
+      tasksDb.write().then(() => executeTask(task));
+    } else if (task.status === "completed" || task.status === "error") {
+      return; // Skip unless restarted
+    } else if (task.status === "idle") {
+      if (task.triggerType === "immediate") {
+        task.status = "running";
+        task.completedComments = 0; // Reset completedComments on first start
         tasksDb.write().then(() => executeTask(task));
-      } else if (task.status === "completed" || task.status === "error") {
-        return; // Skip unless restarted
-      } else if (task.status === "idle") {
-        if (task.triggerType === "immediate") {
+      } else if (task.triggerType === "scheduled" && task.scheduleTime) {
+        const scheduleTime = new Date(task.scheduleTime);
+        if (scheduleTime <= new Date()) {
           task.status = "running";
-          task.completedComments = 0; // Reset completedComments on first start
           tasksDb.write().then(() => executeTask(task));
-        } else if (task.triggerType === "scheduled" && task.scheduleTime) {
-          const scheduleTime = new Date(task.scheduleTime);
-          if (scheduleTime <= new Date()) {
-            task.status = "running";
-            tasksDb.write().then(() => executeTask(task));
-          } else {
-            cron.schedule(
-              `${scheduleTime.getSeconds()} ${scheduleTime.getMinutes()} ${scheduleTime.getHours()} ${scheduleTime.getDate()} ${
-                scheduleTime.getMonth() + 1
-              } *`,
-              () => {
-                task.status = "running";
-                tasksDb.write().then(() => executeTask(task));
-              },
-              { scheduled: true }
-            );
-          }
-        } else if (task.triggerType === "interval" && task.intervalMinutes) {
-          task.status = "running";
-          tasksDb.write().then(() => {
-            const job = cron.schedule(
-              `*/${task.intervalMinutes} * * * *`,
-              () => {
-                executeTask(task);
-              }
-            );
-            cronJobs.set(task.id, job);
-            console.log(`Scheduled interval task ${task.id}`);
-          });
+        } else {
+          cron.schedule(
+            `${scheduleTime.getSeconds()} ${scheduleTime.getMinutes()} ${scheduleTime.getHours()} ${scheduleTime.getDate()} ${
+              scheduleTime.getMonth() + 1
+            } *`,
+            () => {
+              task.status = "running";
+              tasksDb.write().then(() => executeTask(task));
+            },
+            { scheduled: true }
+          );
         }
+      } else if (task.triggerType === "interval" && task.intervalMinutes) {
+        task.status = "running";
+        tasksDb.write().then(() => {
+          const job = cron.schedule(`*/${task.intervalMinutes} * * * *`, () => {
+            executeTask(task);
+          });
+          cronJobs.set(task.id, job);
+          console.log(`Scheduled interval task ${task.id}`);
+        });
       }
-    });
-  });
+    }
+  }
 };
 // New function to stop a task
 export const stopTask = (taskId, reason = "unknown") => {
@@ -419,11 +454,13 @@ app.post("/api/auto-action/tasks", async (req, res) => {
       intervalMinutes: request.intervalMinutes || undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      executeOnStartup: request.executeOnStartup || false,
+      rescheduleAfterUpdate: request.rescheduleAfterUpdate || true,
     };
 
     tasksDb.data.push(newTask);
     await tasksDb.write();
-    scheduleTasks(); // Reschedule tasks after adding a new one
+    scheduleTasks({ tasks: [newTask] }); // Reschedule tasks after adding a new one
 
     res.json({
       success: true,
@@ -494,40 +531,39 @@ app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
         .json({ success: false, message: "Task not found" });
 
     const currentTask = tasksDb.data[taskIndex];
-
+    let execute = false;
     // Handle status transitions
     if (currentTask.status === "running" && status === "completed") {
       stopTask(currentTask.id, "status change to completed");
-    } else if (
-      currentTask.status === "paused" &&
-      status === "running" &&
-      currentTask.triggerType === "immediate"
-    ) {
+    }
+    console.log(currentTask.status, status);
+
+    if (currentTask.status === "paused" && status === "running") {
       // Resume immediate task by resetting controller and starting execution
       stopTask(currentTask.id, "clearing paused state"); // Clear any existing controller
+      // Update the task status
+      tasksDb.data[taskIndex].status = status;
+      await tasksDb.write();
       const controller = new AbortController();
       immediateTaskControllers.set(currentTask.id, controller);
-      tasksDb.data[taskIndex].status = status;
-      tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
-      await tasksDb.write();
-      executeTask(tasksDb.data[taskIndex]); // Start execution immediately
-    } else {
-      // Update status for other cases
-      tasksDb.data[taskIndex].status = status;
-      tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
-      await tasksDb.write();
+      if (currentTask.triggerType === "immediate") {
+        execute = true;
+        executeTask(tasksDb.data[taskIndex]);
+      }
     }
-
+    if (status === "paused") {
+      stopTask(currentTask.id, "clearing paused state"); // Clear any existing controller
+    }
     // Update the task status
     tasksDb.data[taskIndex].status = status;
     tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
     await tasksDb.write();
-
-    // Trigger scheduleTasks to handle any further cleanup or rescheduling
-    await scheduleTasks();
+    if (!execute) {
+      scheduleTasks({ tasks: [tasksDb.data[taskIndex]] }); // Reschedule tasks after adding a new one
+    }
 
     res.json({
-      success: true,
+      success: tasksDb.data[taskIndex],
       message: "Task status updated successfully",
       data: tasksDb.data[taskIndex],
     });
@@ -539,7 +575,59 @@ app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
     });
   }
 });
+// Edit a specific task
+app.put("/api/auto-action/tasks/:taskId", async (req, res) => {
+  try {
+    await tasksDb.read();
+    const taskIndex = tasksDb.data.findIndex((t) => t.id === req.params.taskId);
+    if (taskIndex === -1) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Task not found" });
+    }
 
+    // Get the existing task
+    const existingTask = tasksDb.data[taskIndex];
+
+    // Update only the provided fields from the request body
+    const updatedTask = {
+      ...existingTask,
+      ...req.body, // Merge new fields from request body
+      id: existingTask.id, // Prevent ID from being overwritten
+      updatedAt: new Date().toISOString(), // Update timestamp
+    };
+
+    // Optional: Validate required fields or specific constraints
+    if (!updatedTask.type || !updatedTask.maxComments) {
+      return res.status(400).json({
+        success: false,
+        message: "Task type and maxComments are required",
+      });
+    }
+    // Update the task in the database
+    tasksDb.data[taskIndex] = updatedTask;
+    await tasksDb.write();
+    if (req.body.rescheduleAfterUpdate) {
+      // Resume immediate task by resetting controller and starting execution
+      stopTask(currentTask.id, "clearing paused state"); // Clear any existing controller
+      const controller = new AbortController();
+      immediateTaskControllers.set(currentTask.id, controller);
+      // Trigger scheduleTasks to handle any further cleanup or rescheduling
+      scheduleTasks({ tasks: [updatedTask] }); // Reschedule tasks after adding a new one
+    }
+    res.json({
+      success: true,
+      message: "Task updated successfully",
+      data: updatedTask,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update task",
+      error: error.message,
+    });
+  }
+});
 // Delete a task
 app.delete("/api/auto-action/tasks/:taskId", async (req, res) => {
   try {
@@ -640,7 +728,7 @@ const addCommentLog = async (
   }
 };
 // Playwright 配置和初始化
-const initializePlaywright = async () => {
+const initializePlaywright = async (startUp = false) => {
   try {
     playwrightStatus = "loading"; // 设置为加载中
     console.log("正在启动 Playwright");
@@ -679,23 +767,25 @@ const initializePlaywright = async () => {
       }
     }
     console.log("跳转小红书首页成功，等待调用");
+    await scheduleTasks({ startUp: true });
     playwrightStatus = "running"; // 初始化完成后设置为运行中
     statusEmitter.emit("statusUpdate");
     localData = fs.readFileSync(localFilePath, "utf8");
     if (localData) {
-      console.log(JSON.parse(localData).web_session, "3");
-
       xhs_client = new XhsClient({
         cookie: `a1=${A1};webId=${webId};web_session=${
           JSON.parse(localData).web_session
         }`,
         signFunc: sign,
       });
+      // xhs_client.comment_note(
+      //   "67cc7ae5000000000302817b",
+      //   "第一",
+      //   "ABDQQ7qbuB6fWJoZnzkW49LwaOEipliX-kiWxkqdnv61M"
+      // );
     }
   } catch (error) {
     playwrightStatus = "stopped";
-    console.log("error");
-
     statusEmitter.emit("statusUpdate");
     return {
       error: error.message,
@@ -811,7 +901,15 @@ app.get("/api/homefeed/recommend", async (req, res) => {
 // 路由：设置 web_session
 app.post("/api/set-web-session", (req, res) => {
   const { web_session } = req.body;
-
+  const fileData = fs.readFileSync(localFilePath);
+  let parseData = JSON.parse(fileData);
+  // 更新
+  if (parseData["web_session"] !== web_session) {
+    stopPlaywright();
+    setTimeout(() => {
+      initializePlaywright();
+    }, 300);
+  }
   if (web_session) {
     // 将 web_session 保存到本地文件中
     fs.writeFile(localFilePath, JSON.stringify({ web_session }), (err) => {
@@ -829,19 +927,9 @@ app.post("/api/set-web-session", (req, res) => {
 });
 
 // 路由：获取 web_session
+
 app.get("/api/get-web-session", (req, res) => {
   fs.readFile(localFilePath, "utf8", (err, data) => {
-    if (err) {
-      console.error("读取文件失败", err);
-      res.status(500).json({ error: "读取 web_session 失败" });
-    } else {
-      res.json({ web_session: data });
-    }
-  });
-});
-// 设置web-session
-app.get("/api/get-web-session", (req, res) => {
-  fs.readFile(sessionFilePath, "utf8", (err, data) => {
     if (err) {
       console.error("读取文件失败", err);
       res.status(500).json({ error: "读取 web_session 失败" });
@@ -857,14 +945,14 @@ app.get("/api/search/notes", async (req, res) => {
       throw new Error("XhsClient 未初始化，请先启动 Playwright");
     }
     const {
-      keyword,
+      keywords,
       page = 1,
       page_size = 20,
       sort = SearchSortType.GENERAL,
       note_type = SearchNoteType.ALL,
     } = req.query;
     const result = await xhs_client.get_note_by_keyword(
-      keyword,
+      keywords,
       parseInt(page),
       parseInt(page_size),
       sort,
@@ -888,11 +976,11 @@ app.post("/api/comment/note", async (req, res) => {
     if (!xhs_client) {
       throw new Error("XhsClient 未初始化，请先启动 Playwright");
     }
-    const { note_id, content } = req.body;
+    const { note_id, content, xsec_token } = req.body;
     if (!note_id || !content) {
       throw new Error("note_id 和 content 为必填参数");
     }
-    const result = await xhs_client.comment_note(note_id, content);
+    const result = await xhs_client.comment_note(note_id, content, xsec_token);
     res.status(200).json({
       success: true,
       data: result,
@@ -995,10 +1083,9 @@ app.listen(port, async () => {
     let data = JSON.parse(localData).web_session;
 
     if (data) {
-      await initializePlaywright();
       // Call initialization on startup
       await initializeDatabases();
-      await scheduleTasks();
+      await initializePlaywright(true);
     }
   }
   // 可选：打开浏览器

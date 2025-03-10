@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -26,7 +24,7 @@ import { useCommentStore } from "../store/comment-store";
 import { useToast } from "../contexts/toast-context";
 import type { CommentTemplate } from "../types";
 import { commentNote } from "../services/comment-service";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 
 export default function CommentModal() {
   const { isCommentModalOpen, closeCommentModal, selectedPosts } =
@@ -160,45 +158,43 @@ export default function CommentModal() {
 
       // Track results
       const results = [];
+      console.log(selectedPosts);
 
       // Post comments with delays
       for (const post of selectedPosts) {
-        for (const comment of commentsToPost) {
-          // Random delay between minDelay and maxDelay
-          const delay =
-            Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-          console.log(
-            `Posting comment to ${post.title} with delay of ${delay}s: ${comment}`
-          );
+        const delay =
+          Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+        const comment =
+          commentsToPost[Math.floor(Math.random() * commentsToPost.length)];
+        // console.log(
+        //   `Posting comment to ${post.title} with delay of ${delay}s: ${comment}`
+        // );
+        // Wait for the delay
+        await new Promise((resolve) => setTimeout(resolve, delay * 1000));
 
-          // Wait for the delay
-          await new Promise((resolve) => setTimeout(resolve, delay * 1000));
-
-          try {
-            // Call the real API
-            const response = await commentNote(post.id, comment);
-
-            // Add to results
-            results.push({
-              postId: post.id,
-              postTitle: post.title,
-              comment,
-              success: response.success,
-              message: response.success
-                ? "评论成功"
-                : response.error || "评论失败",
-            });
-          } catch (err) {
-            console.error(`Error commenting on post ${post.id}:`, err);
-            results.push({
-              postId: post.id,
-              postTitle: post.title,
-              comment,
-              success: false,
-              message:
-                err instanceof Error ? err.message : "评论失败，请稍后重试",
-            });
-          }
+        try {
+          // Call the real API
+          const response = await commentNote(post.id, comment);
+          // Add to results
+          results.push({
+            postId: post.id,
+            postTitle: post.title,
+            comment,
+            success: response.success,
+            message: response.success
+              ? "评论成功"
+              : response.error || "评论失败",
+          });
+        } catch (err) {
+          console.error(`Error commenting on post ${post.id}:`, err);
+          results.push({
+            postId: post.id,
+            postTitle: post.title,
+            comment,
+            success: false,
+            message:
+              err instanceof Error ? err.message : "评论失败，请稍后重试",
+          });
         }
       }
 

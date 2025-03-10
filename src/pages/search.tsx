@@ -30,7 +30,7 @@ import {
   SearchSortType,
   SearchNoteType,
 } from "../services/search-service";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");

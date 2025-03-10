@@ -3,7 +3,7 @@
  */
 import { api } from "./api-service";
 
-export type PlaywrightStatusType = "running" | "loading" | "stopped";
+export type PlaywrightStatusType = "running" | "loading" | "stopped" | "idle";
 
 export interface PlaywrightStatusResponse {
   status: PlaywrightStatusType;

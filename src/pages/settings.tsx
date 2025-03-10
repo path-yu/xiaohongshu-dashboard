@@ -1,5 +1,3 @@
-"use client";
-
 import type * as React from "react";
 import { useState, useEffect } from "react";
 import {
@@ -15,11 +13,18 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  ToggleButtonGroup,
+  ToggleButton,
+  useMediaQuery,
+  useTheme as useMuiTheme,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import { useToast } from "../contexts/toast-context";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 import { getWebSession, setWebSession } from "../services/settings-service";
+import { useTheme } from "../contexts/theme-context";
 
 interface Settings {
   web_session: string;
@@ -36,18 +41,24 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
   const { startBrowser, status: playwrightStatus } = usePlaywright();
+  const { mode, setThemeMode } = useTheme();
+  const muiTheme = useMuiTheme();
+  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
 
   // Load settings from localStorage and API
   useEffect(() => {
     const loadSettings = async () => {
       setFetchingSession(true);
+
       // Load web_session from API
       try {
-        const response = await getWebSession();
-        const data = JSON.parse(response.web_session!);
+        let response = await getWebSession();
+        response = JSON.parse(response.web_session!);
+        console.log(response);
+
         if (!response.error) {
           setSettings({
-            web_session: data.web_session || "",
+            web_session: response.web_session || "",
             autoStartPlaywright:
               localStorage.getItem("autoStartPlaywright") === "true",
           });
@@ -65,6 +76,7 @@ export default function SettingsPage() {
         setFetchingSession(false);
       }
     };
+
     loadSettings();
   }, []);
 
@@ -85,6 +97,15 @@ export default function SettingsPage() {
     localStorage.setItem("autoStartPlaywright", checked.toString());
   };
 
+  const handleThemeChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newThemeMode: string | null
+  ) => {
+    if (newThemeMode) {
+      setThemeMode(newThemeMode as "light" | "dark");
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -101,7 +122,7 @@ export default function SettingsPage() {
         );
 
         // Auto-start Playwright if enabled
-        if (settings.autoStartPlaywright && playwrightStatus === "stopped") {
+        if (settings.autoStartPlaywright && playwrightStatus === "idle") {
           await startBrowser();
         }
       } else {
@@ -226,6 +247,67 @@ export default function SettingsPage() {
 
               <Alert severity="warning" sx={{ mt: 2 }}>
                 Keep your credentials secure and never share them with others.
+              </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Theme Settings Card */}
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Appearance Settings
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Theme Mode
+                </Typography>
+                <ToggleButtonGroup
+                  value={mode}
+                  exclusive
+                  onChange={handleThemeChange}
+                  aria-label="theme mode"
+                  sx={{ width: "100%" }}
+                >
+                  <ToggleButton
+                    value="light"
+                    aria-label="light mode"
+                    sx={{ flex: 1 }}
+                  >
+                    <LightModeIcon sx={{ mr: 1 }} />
+                    Light
+                  </ToggleButton>
+                  <ToggleButton
+                    value="dark"
+                    aria-label="dark mode"
+                    sx={{ flex: 1 }}
+                  >
+                    <DarkModeIcon sx={{ mr: 1 }} />
+                    Dark
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  Current theme: {mode === "light" ? "Light Mode" : "Dark Mode"}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  System preference:{" "}
+                  {prefersDarkMode ? "Dark Mode" : "Light Mode"}
+                </Typography>
+              </Box>
+
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Theme settings are saved automatically and will persist across
+                sessions.
               </Alert>
             </CardContent>
           </Card>

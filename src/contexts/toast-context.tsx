@@ -40,8 +40,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setOpen(false);
   };
 
+  const contextValue = React.useMemo(() => {
+    return { showToast, hideToast };
+  }, []);
+
   return (
-    <ToastContext.Provider value={{ showToast, hideToast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <Snackbar
         open={open}

@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import {
   startPlaywright,
@@ -7,7 +5,7 @@ import {
   type PlaywrightStatusType,
   type PlaywrightStatusResponse,
 } from "../services/playwright-service";
-import { SSEConnection } from "../services/sse.service";
+import { SSEConnection } from "../services/sse-service";
 import { useToast } from "./toast-context";
 import { api } from "../services/api-service";
 

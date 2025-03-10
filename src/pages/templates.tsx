@@ -1,5 +1,3 @@
-"use client";
-
 import * as React from "react";
 import { useState, useEffect } from "react";
 import {
@@ -341,7 +339,7 @@ export default function TemplatesPage() {
                 </li>
               </Box>
 
-              <Box sx={{ mt: 2 }}>
+              {/* <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Template Variables:
                 </Typography>
@@ -350,7 +348,7 @@ export default function TemplatesPage() {
                   <Chip label="{title}" size="small" />
                   <Chip label="{category}" size="small" />
                 </Box>
-              </Box>
+              </Box> */}
             </CardContent>
           </Card>
         </Grid>

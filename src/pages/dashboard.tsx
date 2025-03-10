@@ -1,10 +1,6 @@
-"use client";
-
-import type * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import {
   Box,
-  Card,
   CardContent,
   Typography,
   Grid,
@@ -26,10 +22,10 @@ import {
   type Category,
 } from "../services/homefeed-service";
 import { FeedType, type HomeFeedItem } from "../types/homefeed";
-import { usePlaywright } from "../contexts/playwright.context";
+import { usePlaywright } from "../contexts/playwright-context";
 import { useToast } from "../contexts/toast-context";
 import { usePostContext } from "../contexts/post-context";
-
+import AnimatedCard from "../components/animated-card";
 export default function Dashboard() {
   const [tabValue, setTabValue] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -104,7 +100,6 @@ export default function Dashboard() {
       setLoadingCategories(false);
     }
   }, [playwrightStatus]);
-
   // Fetch categories on mount and when Playwright status changes
   useEffect(() => {
     fetchCategories();
@@ -113,10 +108,8 @@ export default function Dashboard() {
   // Fetch posts when tab changes or when Playwright status changes
   const fetchPosts = useCallback(async () => {
     if (categories.length === 0) return;
-
     setLoading(true);
     setError(null);
-
     try {
       // If Playwright is not running, show mock data
       if (playwrightStatus !== "running") {
@@ -224,15 +217,17 @@ export default function Dashboard() {
   };
 
   const handleRefresh = () => {
-    fetchCategories();
     fetchPosts();
+    if (categories.length === 2) {
+      fetchCategories();
+    }
   };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card>
+          <AnimatedCard>
             <CardContent>
               <Box
                 sx={{
@@ -332,7 +327,7 @@ export default function Dashboard() {
                 <PostList posts={posts} />
               )}
             </CardContent>
-          </Card>
+          </AnimatedCard>
         </Grid>
       </Grid>
 

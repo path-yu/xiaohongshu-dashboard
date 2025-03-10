@@ -1,0 +1,14 @@
+.sticky-header {
+  transition: all 0.3s ease;
+}
+
+.sticky-header.sticky {
+  position: fixed;
+  top: 64px; /* Adjust based on your navbar height */
+  z-index: 1000;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px 16px;
+  width: 100%;
+  left: 0;
+}

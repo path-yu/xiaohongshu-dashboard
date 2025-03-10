@@ -344,7 +344,7 @@ function cookieJarToCookieStr(cookie) {
 
 function updateSessionCookiesFromCookie(session, cookie) {
   let cookieDict = cookieStrToCookieDict(cookie) || {};
-  console.log("原始 cookieDict:", cookieDict); // 调试
+  // console.log("原始 cookieDict:", cookieDict); // 调试
   if (!cookieDict.a1 || !cookieDict.webId) {
     cookieDict = {
       ...cookieDict,
@@ -362,7 +362,7 @@ function updateSessionCookiesFromCookie(session, cookie) {
   session.defaults.headers.Cookie = Object.entries(cookieDict)
     .map(([k, v]) => `${k}=${v}`)
     .join(";");
-  console.log("更新后的 headers.Cookie:", session.defaults.headers.Cookie); // 调试
+  // console.log("更新后的 headers.Cookie:", session.defaults.headers.Cookie); // 调试
 }
 
 export {

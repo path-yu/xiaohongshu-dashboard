@@ -2,6 +2,7 @@
  * Service for automated actions like commenting
  */
 import { api } from "./api-service";
+import { SSEConnection } from "./sse-service";
 
 export enum TaskStatus {
   RUNNING = "running",
@@ -42,6 +43,8 @@ export interface CommentTask {
   createdAt: string;
   updatedAt: string;
   error?: string;
+  executeOnStartup?: boolean; // 服务开机是否立即执行
+  rescheduleAfterUpdate?: boolean; // 修改任务参数后是否立即重新调度
 }
 
 export interface CommentLog {
@@ -69,6 +72,12 @@ export interface CreateTaskRequest {
   triggerType: TriggerType;
   scheduleTime?: string;
   intervalMinutes?: number;
+  executeOnStartup?: boolean; // 服务开机是否立即执行
+  rescheduleAfterUpdate?: boolean; // 修改任务参数后是否立即重新调度
+}
+
+export interface UpdateTaskRequest extends CreateTaskRequest {
+  id: string;
 }
 
 export interface TaskResponse {
@@ -105,6 +114,27 @@ export const createTask = async (
     return {
       success: false,
       message: "Failed to create task",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+/**
+ * Update an existing comment task
+ */
+export const updateTask = async (
+  request: UpdateTaskRequest
+): Promise<TaskResponse> => {
+  try {
+    return await api.put<TaskResponse>(
+      `api/auto-action/tasks/${request.id}`,
+      request
+    );
+  } catch (error) {
+    console.error(`Failed to update task ${request.id}:`, error);
+    return {
+      success: false,
+      message: "Failed to update task",
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
@@ -241,4 +271,37 @@ export const downloadCsv = (csvContent: string, filename: string): void => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+/**
+ * Subscribe to real-time task updates via SSE
+ * @param onUpdate Callback function to handle task updates
+ * @returns A function to close the SSE connection
+ */
+export const subscribeToTaskUpdates = (
+  onUpdate: (tasks: CommentTask[]) => void,
+  onError?: (error: Error) => void
+): (() => void) => {
+  const sseUrl = api.getApiUrl("api/auto-action/tasks/sse");
+  const sseConnection = new SSEConnection<CommentTask[]>(
+    sseUrl,
+    (data) => {
+      onUpdate(data);
+    },
+    {
+      onError: (error) => {
+        console.error("Task SSE connection error:", error);
+        if (onError) onError(error);
+      },
+      reconnectDelay: 3000,
+      maxReconnectAttempts: 5,
+    }
+  );
+
+  sseConnection.connect();
+
+  // Return a cleanup function
+  return () => {
+    sseConnection.close();
+  };
 };

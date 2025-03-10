@@ -7,7 +7,7 @@ import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 const tronWeb = new TronWeb({ fullHost: "https://api.trongrid.io" });
 
 // 目标后4位
-const TARGET_SUFFIX = "E8WI"; // 替换为你的目标后4位
+const TARGET_SUFFIX = "WI"; // 替换为你的目标后4位
 
 // 主线程：启动多个 Worker
 if (isMainThread) {
@@ -71,7 +71,7 @@ if (isMainThread) {
       const wallet = generateTronAddress(mnemonic, i);
       attempts++;
 
-      if (wallet.address.slice(-4) === targetSuffix) {
+      if (wallet.address.slice(-2) === targetSuffix) {
         parentPort.postMessage({
           found: true,
           mnemonic: wallet.mnemonic,
