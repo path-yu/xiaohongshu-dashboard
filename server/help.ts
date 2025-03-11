@@ -1,9 +1,20 @@
-// help.js
 import axios from "axios";
 import fs from "fs";
 import crypto from "crypto";
-function sign(uri, data = null, ctime = null, a1 = "", b1 = "") {
-  function h(n) {
+
+export interface ISignResult {
+  "x-s": string;
+  "x-t": string;
+  "x-s-common"?: string;
+}
+
+export async function sign(
+  uri: string,
+  data: any,
+  a1: string,
+  webSession?: string // 可选参数，替换原来的 ctime 和 b1
+): Promise<ISignResult> {
+  function h(n: string): string {
     let m = "";
     const d =
       "A4NjFqYu5wPHsO0XTdDgMa2r1ZQocVte9UJBvk6/7=yRnhISGKblCWi+LpfE8xzm3";
@@ -22,7 +33,7 @@ function sign(uri, data = null, ctime = null, a1 = "", b1 = "") {
     return m;
   }
 
-  const v = ctime ? ctime : Math.round(Date.now());
+  const v = Math.round(Date.now()); // 移除 ctime 参数，使用当前时间
   const raw_str = `${v}test${uri}${
     data && typeof data === "object" ? JSON.stringify(data, null, 0) : ""
   }`;
@@ -41,17 +52,19 @@ function sign(uri, data = null, ctime = null, a1 = "", b1 = "") {
     x5: a1,
     x6: x_t,
     x7: x_s,
-    x8: b1,
+    x8: webSession || "", // 使用 webSession 替换 b1
     x9: mrc(x_t + x_s),
     x10: 1,
   };
   const encodeStr = encodeUtf8(JSON.stringify(common, null, 0));
   const x_s_common = b64Encode(encodeStr);
-  return { "x-s": x_s, "x-t": x_t, "x-s-common": x_s_common };
+
+  // 返回 Promise
+  return Promise.resolve({ "x-s": x_s, "x-t": x_t, "x-s-common": x_s_common });
 }
 
-function getA1AndWebId() {
-  function randomStr(length) {
+export function getA1AndWebId(): [string, string] {
+  function randomStr(length: number): string {
     const alphabet =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     return Array.from(
@@ -65,50 +78,58 @@ function getA1AndWebId() {
   return [g, crypto.createHash("md5").update(g).digest("hex")];
 }
 
-const imgCdns = [
+const imgCdns: string[] = [
   "https://sns-img-qc.xhscdn.com",
   "https://sns-img-hw.xhscdn.com",
   "https://sns-img-bd.xhscdn.com",
   "https://sns-img-qn.xhscdn.com",
 ];
 
-function getImgUrlByTraceId(trace_id, format = "png") {
+export function getImgUrlByTraceId(
+  trace_id: string,
+  format: string = "png"
+): string {
   return `${
     imgCdns[Math.floor(Math.random() * imgCdns.length)]
   }/${trace_id}?imageView2/format/${format}`;
 }
 
-function getImgUrlsByTraceId(trace_id, format = "png") {
+export function getImgUrlsByTraceId(
+  trace_id: string,
+  format: string = "png"
+): string[] {
   return imgCdns.map((cdn) => `${cdn}/${trace_id}?imageView2/format/${format}`);
 }
 
-function getTraceId(img_url) {
-  const trace_id = img_url.split("/").pop().split("!")[0];
+export function getTraceId(img_url: string): string {
+  const trace_id = img_url.split("/").pop()?.split("!")[0] || "";
   return img_url.includes("spectrum") ? `spectrum/${trace_id}` : trace_id;
 }
 
-function getImgsUrlFromNote(note) {
+export function getImgsUrlFromNote(note: any): string[] {
   const imgs = note.image_list || [];
   return imgs.length
-    ? imgs.map((img) => getImgUrlByTraceId(getTraceId(img.info_list[0].url)))
+    ? imgs.map((img: any) =>
+        getImgUrlByTraceId(getTraceId(img.info_list[0].url))
+      )
     : [];
 }
 
-function getImgsUrlsFromNote(note) {
+export function getImgsUrlsFromNote(note: any): string[][] {
   const imgs = note.image_list || [];
   return imgs.length
-    ? imgs.map((img) => getImgUrlsByTraceId(img.trace_id))
+    ? imgs.map((img: any) => getImgUrlsByTraceId(img.trace_id))
     : [];
 }
 
-const videoCdns = [
+const videoCdns: string[] = [
   "https://sns-video-qc.xhscdn.com",
   "https://sns-video-hw.xhscdn.com",
   "https://sns-video-bd.xhscdn.com",
   "https://sns-video-qn.xhscdn.com",
 ];
 
-function getVideoUrlFromNote(note) {
+export function getVideoUrlFromNote(note: any): string {
   if (!note.video) return "";
   const origin_video_key = note.video.consumer?.origin_video_key || "";
   return origin_video_key
@@ -118,7 +139,7 @@ function getVideoUrlFromNote(note) {
     : "";
 }
 
-function getVideoUrlsFromNote(note) {
+export function getVideoUrlsFromNote(note: any): string[] {
   if (!note.video) return [];
   const origin_video_key = note.video.consumer?.origin_video_key || "";
   return origin_video_key
@@ -126,7 +147,10 @@ function getVideoUrlsFromNote(note) {
     : [];
 }
 
-async function downloadFile(url, filename) {
+export async function downloadFile(
+  url: string,
+  filename: string
+): Promise<void> {
   const response = await axios({ url, method: "GET", responseType: "stream" });
   const writer = fs.createWriteStream(filename);
   response.data.pipe(writer);
@@ -136,14 +160,15 @@ async function downloadFile(url, filename) {
   });
 }
 
-function getValidPathName(text) {
+export function getValidPathName(text: string): string {
   return text.replace(/[<>:"/\\|?*]/g, "_");
 }
 
-function mrc(e) {
-  const ie = [
+export function mrc(e: string): number {
+  const ie: number[] = [
     0, 1996959894, 3993919788, 2567524794,
-    /* ... 完整数组省略，需从 Python 代码复制过来 ... */ 755167117,
+    // ... 完整数组省略，需从 Python 代码复制过来 ...
+    755167117,
   ];
   let o = -1;
   for (let n = 0; n < Math.min(57, e.length); n++) {
@@ -152,13 +177,13 @@ function mrc(e) {
   return o ^ -1 ^ 3988292384;
 }
 
-function rightWithoutSign(num, bit = 0) {
-  const val = num >>> bit; // 无符号右移
+export function rightWithoutSign(num: number, bit: number = 0): number {
+  const val = num >>> bit;
   const MAX32INT = 4294967295;
   return ((val + (MAX32INT + 1)) % (2 * (MAX32INT + 1))) - MAX32INT - 1;
 }
 
-const lookup = [
+const lookup: string[] = [
   "Z",
   "m",
   "s",
@@ -225,7 +250,7 @@ const lookup = [
   "5",
 ];
 
-function tripletToBase64(e) {
+function tripletToBase64(e: number): string {
   return (
     lookup[63 & (e >> 18)] +
     lookup[63 & (e >> 12)] +
@@ -234,8 +259,8 @@ function tripletToBase64(e) {
   );
 }
 
-function encodeChunk(e, t, r) {
-  let m = [];
+function encodeChunk(e: number[], t: number, r: number): string {
+  let m: string[] = [];
   for (let b = t; b < r; b += 3) {
     const n =
       ((e[b] & 16711680) >> 16) + ((e[b + 1] & 65280) >> 8) + (e[b + 2] & 255);
@@ -244,10 +269,10 @@ function encodeChunk(e, t, r) {
   return m.join("");
 }
 
-function b64Encode(e) {
+export function b64Encode(e: number[]): string {
   const P = e.length;
   const W = P % 3;
-  const U = [];
+  const U: string[] = [];
   const z = 16383;
   let H = 0;
   const Z = P - W;
@@ -267,14 +292,14 @@ function b64Encode(e) {
   return U.join("");
 }
 
-function encodeUtf8(e) {
+export function encodeUtf8(e: string): number[] {
   const encoded = encodeURIComponent(e).replace(/%([0-9A-F]{2})/g, (_, p1) =>
-    String.fromCharCode("0x" + p1)
+    String.fromCharCode(parseInt(p1, 16))
   );
   return Array.from(encoded, (char) => char.charCodeAt(0));
 }
 
-function base36encode(number) {
+export function base36encode(number: number): string {
   const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let base36 = "";
   let sign = number < 0 ? "-" : "";
@@ -287,10 +312,11 @@ function base36encode(number) {
   return sign + base36;
 }
 
-function base36decode(number) {
+export function base36decode(number: string): number {
   return parseInt(number, 36);
 }
-const sleep = (ms, signal) => {
+
+export const sleep = (ms: number, signal?: AbortSignal): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
       return reject(new Error("Sleep aborted"));
@@ -298,7 +324,6 @@ const sleep = (ms, signal) => {
 
     const timeout = setTimeout(resolve, ms);
 
-    // Listen for abort signal and clean up
     signal?.addEventListener(
       "abort",
       () => {
@@ -309,8 +334,9 @@ const sleep = (ms, signal) => {
     );
   });
 };
-function crc32(str) {
-  const crcTable = [];
+
+export function crc32(str: string): number {
+  const crcTable: number[] = [];
   for (let i = 0; i < 256; i++) {
     let c = i;
     for (let j = 0; j < 8; j++) {
@@ -325,26 +351,30 @@ function crc32(str) {
   return (crc ^ -1) >>> 0;
 }
 
-function getSearchId() {
+export function getSearchId(): string {
   const e = BigInt(Math.floor(Date.now())) << BigInt(64);
   const t = Math.floor(Math.random() * 2147483646);
   return base36encode(Number(e + BigInt(t)));
 }
 
-function cookieStrToCookieDict(cookie_str) {
+export function cookieStrToCookieDict(
+  cookie_str: string
+): Record<string, string> {
   if (!cookie_str) return {};
   return Object.fromEntries(
     cookie_str.split(";").map((block) => block.trim().split("="))
   );
 }
 
-function cookieJarToCookieStr(cookie) {
+export function cookieJarToCookieStr(cookie: any): string {
   return cookie || "";
 }
 
-function updateSessionCookiesFromCookie(session, cookie) {
+export function updateSessionCookiesFromCookie(
+  session: any,
+  cookie: string
+): void {
   let cookieDict = cookieStrToCookieDict(cookie) || {};
-  // console.log("原始 cookieDict:", cookieDict); // 调试
   if (!cookieDict.a1 || !cookieDict.webId) {
     cookieDict = {
       ...cookieDict,
@@ -362,27 +392,4 @@ function updateSessionCookiesFromCookie(session, cookie) {
   session.defaults.headers.Cookie = Object.entries(cookieDict)
     .map(([k, v]) => `${k}=${v}`)
     .join(";");
-  // console.log("更新后的 headers.Cookie:", session.defaults.headers.Cookie); // 调试
 }
-
-export {
-  sign,
-  getA1AndWebId,
-  getImgUrlByTraceId,
-  getImgUrlsByTraceId,
-  getTraceId,
-  getImgsUrlFromNote,
-  getImgsUrlsFromNote,
-  getVideoUrlFromNote,
-  getVideoUrlsFromNote,
-  downloadFile,
-  getValidPathName,
-  mrc,
-  b64Encode,
-  encodeUtf8,
-  getSearchId,
-  cookieStrToCookieDict,
-  cookieJarToCookieStr,
-  updateSessionCookiesFromCookie,
-  sleep,
-};

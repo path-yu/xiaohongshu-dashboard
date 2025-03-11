@@ -1,38 +1,39 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import path, { parse } from "path";
 import { exec } from "child_process";
-import { chromium } from "playwright";
+import { chromium, Browser, BrowserContext, Page } from "playwright";
 import fs from "fs";
 import { EventEmitter } from "events";
 import { Low } from "lowdb";
 import { JSONFile } from "lowdb/node"; // Use JSONFile adapter for Node.js
 import cors from "cors"; // 引入 CORS 中间件
+import cron from "node-cron";
 
-import XhsClient from "./xhsClient.js"; //
+import XhsClient from "./xhsClient.ts"; //
 import {
   FeedType,
   NoteType,
   SearchSortType,
   SearchNoteType,
   Note,
-} from "./enums.js";
-import { sleep } from "./help.js";
+} from "./enums.ts";
+import { sleep } from "./help.ts";
+import { ITask, ILog, TaskStatus, INote } from "./type.ts";
 
 const app = express();
 const port = 3000;
-
 // 允许所有来源的请求
 app.use(cors());
 // 中间件以解析 JSON 请求体
 app.use(express.json());
-let xhs_client;
+let xhs_client: XhsClient | null;
 // 全局变量存储 a1 和 Playwright 实例
 let A1 = "";
 let webId = "";
 let startUp = false;
-let browser = null;
-let context = null;
-let page = null;
+let browser: Browser | null;
+let context: BrowserContext | null;
+let page: Page | null;
 // 新增：全局状态变量
 let playwrightStatus = "stopped"; // 默认状态为已停止
 // // 创建事件发射器用于状态管理
@@ -44,24 +45,26 @@ let localData = fs.readFileSync(localFilePath, "utf8");
 const TASKS_FILE = path.join(process.cwd(), "tasks.json");
 const LOGS_FILE = path.join(process.cwd(), "logs.json");
 // / Initialize LowDB instances
-const tasksAdapter = new JSONFile(TASKS_FILE);
-const logsAdapter = new JSONFile(LOGS_FILE);
-const tasksDb = new Low(tasksAdapter, []);
-const logsDb = new Low(logsAdapter, []);
+// 初始化 tasksDb
+const tasksAdapter = new JSONFile<ITask[]>(TASKS_FILE);
+const tasksDb = new Low<ITask[]>(tasksAdapter, []);
+
+// 初始化 logsDb
+const logsAdapter = new JSONFile<ILog[]>(LOGS_FILE);
+const logsDb = new Low<ILog[]>(logsAdapter, []);
 // Map to store cron jobs for interval tasks
 const cronJobs = new Map();
 // Map to store abort controllers for immediate tasks
 const immediateTaskControllers = new Map();
 
 // Initialize databases with default values if empty
-export const initializeDatabases = async () => {
+export const initializeDatabases = async (): Promise<void> => {
   try {
     await tasksDb.read();
     await logsDb.read();
     tasksDb.data = tasksDb.data || [];
     logsDb.data = logsDb.data || [];
 
-    // Reset task statuses on initialization
     tasksDb.data = tasksDb.data.map((task) => {
       if (
         task.status === "running" ||
@@ -74,10 +77,10 @@ export const initializeDatabases = async () => {
           updatedAt: new Date().toISOString(),
           error: "",
           completedComments: 0,
-        };
+        } as ITask; // 显式断言为 ITask
       }
-      return task; // Leave "completed" or "error" unchanged
-    });
+      return task;
+    }) as ITask[]; // 显式断言整个数组为 ITask[]
 
     await tasksDb.write();
     await logsDb.write();
@@ -111,7 +114,7 @@ const getRandomKeyword = (keywords) => {
 const fetchSearchNotes = async (keyword, sortType, note_type = 0) => {
   try {
     // Simulate fetching a single note (modify this based on your actual API)
-    const response = await xhs_client.get_note_by_keyword(
+    const response = await xhs_client!.get_note_by_keyword(
       keyword,
       1,
       20,
@@ -139,12 +142,13 @@ const executeTask = async (task) => {
     // Track fetched note IDs to avoid duplicates
     const fetchedNoteIds = new Set();
     let currentTask = tasksDb.data.find((t) => t.id === task.id);
+    if (!currentTask) return;
     // Outer loop to fetch notes until maxComments is reached
     while (
       currentTask.status === "running" &&
       currentTask.completedComments < currentTask.maxComments
     ) {
-      let notes = [];
+      let notes: INote[] = [];
 
       // Fetch notes based on task type with a random keyword
       if (task.type === "search") {
@@ -184,7 +188,7 @@ const executeTask = async (task) => {
 
       for (const note of notes) {
         if (controller.signal.aborted) {
-          currentTask.status = "paused";
+          currentTask.status = TaskStatus.Paused;
           await updateTaskData(task.id, "status", "paused");
           console.log(`Task ${task.id} aborted`);
           break;
@@ -235,7 +239,7 @@ const executeTask = async (task) => {
 
           // Check if maxComments is reached
           if (currentTask.completedComments >= currentTask.maxComments) {
-            currentTask.status = "completed";
+            currentTask.status = TaskStatus.Completed;
             await updateTaskData(task.id, "status", "completed");
             console.log(`Task ${task.id} completed: reached maxComments`);
             break;
@@ -262,7 +266,7 @@ const executeTask = async (task) => {
     await tasksDb.read();
     const taskIndex = tasksDb.data.findIndex((t) => t.id === task.id);
     if (taskIndex !== -1) {
-      tasksDb.data[taskIndex].status = "error";
+      tasksDb.data[taskIndex].status = TaskStatus.Error;
       tasksDb.data[taskIndex].error = error.message;
       tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
       await tasksDb.write();
@@ -274,32 +278,41 @@ const executeTask = async (task) => {
 // Function to fetch homepage notes
 const fetchHomepageNotes = async () => {
   try {
-    const result = await xhs_client.get_home_feed(FeedType.RECOMMEND);
+    const result = await xhs_client!.get_home_feed(FeedType.RECOMMEND);
     return result.items || []; // Assuming items contains the notes
   } catch (error) {
     console.error("Failed to fetch homepage notes:", error);
     return [];
   }
 };
-const updateTaskData = async (id, key, val) => {
-  // Persist changes to the database
+export const updateTaskData = async (
+  id: string,
+  key: keyof ITask,
+  val: any
+): Promise<void> => {
   await tasksDb.read();
-  let currentTask = tasksDb.data.find((t) => t.id === id);
   const taskIndex = tasksDb.data.findIndex((t) => t.id === id);
   if (taskIndex !== -1) {
+    const currentTask = tasksDb.data[taskIndex]; // 类型为 ITask
     tasksDb.data[taskIndex] = {
       ...currentTask,
       [key]: val,
       updatedAt: new Date().toISOString(),
-    };
+    } as ITask; // 显式断言
     await tasksDb.write();
   }
 };
 // Function to execute a task with pause support and direct status updates
 
 // Task scheduler with pause support
-const scheduleTasks = async ({ startUp = false, tasks = [] }) => {
-  let taskList = [];
+const scheduleTasks = async ({
+  startUp = false as boolean,
+  tasks = [] as ITask[],
+}: {
+  startUp?: boolean;
+  tasks?: ITask[];
+}) => {
+  let taskList: ITask[] = [];
   if (tasks.length) {
     taskList = tasks;
   } else {
@@ -337,19 +350,19 @@ const scheduleTasks = async ({ startUp = false, tasks = [] }) => {
       task.completedComments >= task.maxComments
     ) {
       task.completedComments = 0;
-      task.error = undefined;
+      task.error = "";
       tasksDb.write().then(() => executeTask(task));
     } else if (task.status === "completed" || task.status === "error") {
       return; // Skip unless restarted
     } else if (task.status === "idle") {
       if (task.triggerType === "immediate") {
-        task.status = "running";
+        task.status = TaskStatus.Running;
         task.completedComments = 0; // Reset completedComments on first start
         tasksDb.write().then(() => executeTask(task));
       } else if (task.triggerType === "scheduled" && task.scheduleTime) {
         const scheduleTime = new Date(task.scheduleTime);
         if (scheduleTime <= new Date()) {
-          task.status = "running";
+          task.status = TaskStatus.Running;
           tasksDb.write().then(() => executeTask(task));
         } else {
           cron.schedule(
@@ -357,14 +370,14 @@ const scheduleTasks = async ({ startUp = false, tasks = [] }) => {
               scheduleTime.getMonth() + 1
             } *`,
             () => {
-              task.status = "running";
+              task.status = TaskStatus.Running;
               tasksDb.write().then(() => executeTask(task));
             },
             { scheduled: true }
           );
         }
       } else if (task.triggerType === "interval" && task.intervalMinutes) {
-        task.status = "running";
+        task.status = TaskStatus.Running;
         tasksDb.write().then(() => {
           const job = cron.schedule(`*/${task.intervalMinutes} * * * *`, () => {
             executeTask(task);
@@ -394,8 +407,14 @@ export const stopTask = (taskId, reason = "unknown") => {
     console.log(`Cron job for task ${taskId} stopped due to ${reason}`);
   }
 };
-// Store SSE clients
-const sseClients = new Set();
+// 定义 SSE 客户端接口
+interface SSEClient {
+  id: string; // 唯一标识符
+  res: Response; // Express 的 Response 对象
+}
+
+// 使用 Set 存储 SSE 客户端
+const sseClients: Set<SSEClient> = new Set();
 // SSE endpoint for real-time task updates
 app.get("/api/auto-action/tasks/sse", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -403,7 +422,13 @@ app.get("/api/auto-action/tasks/sse", (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders(); // Ensure headers are sent immediately
 
-  const client = { res };
+  // 创建客户端对象
+  const client: SSEClient = {
+    id: (req.query.clientId as string) || Date.now().toString(), // 确保唯一性
+    res,
+  };
+
+  // 添加到 Set
   sseClients.add(client);
 
   // Send initial task list
@@ -436,7 +461,7 @@ app.post("/api/auto-action/tasks", async (req, res) => {
     const newTask = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: request.type,
-      status: "idle",
+      status: TaskStatus.Idle,
       keywords: Array.isArray(request.keywords)
         ? request.keywords
         : [request.keywords], // Ensure keyword is an array
@@ -456,7 +481,8 @@ app.post("/api/auto-action/tasks", async (req, res) => {
       updatedAt: new Date().toISOString(),
       executeOnStartup: request.executeOnStartup || false,
       rescheduleAfterUpdate: request.rescheduleAfterUpdate || true,
-    };
+      error: "",
+    } as ITask;
 
     tasksDb.data.push(newTask);
     await tasksDb.write();
@@ -501,9 +527,7 @@ app.get("/api/auto-action/tasks/:taskId", async (req, res) => {
     await tasksDb.read();
     const task = tasksDb.data.find((t) => t.id === req.params.taskId);
     if (!task) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Task not found" });
+      res.status(404).json({ success: false, message: "Task not found" });
     }
     res.json({
       success: true,
@@ -525,10 +549,10 @@ app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
     const { status } = req.body;
     await tasksDb.read();
     const taskIndex = tasksDb.data.findIndex((t) => t.id === req.params.taskId);
-    if (taskIndex === -1)
-      return res
-        .status(404)
-        .json({ success: false, message: "Task not found" });
+    if (taskIndex === -1) {
+      res.status(404).json({ success: false, message: "Task not found" });
+      return;
+    }
 
     const currentTask = tasksDb.data[taskIndex];
     let execute = false;
@@ -581,9 +605,8 @@ app.put("/api/auto-action/tasks/:taskId", async (req, res) => {
     await tasksDb.read();
     const taskIndex = tasksDb.data.findIndex((t) => t.id === req.params.taskId);
     if (taskIndex === -1) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Task not found" });
+      res.status(404).json({ success: false, message: "Task not found" });
+      return;
     }
 
     // Get the existing task
@@ -599,7 +622,7 @@ app.put("/api/auto-action/tasks/:taskId", async (req, res) => {
 
     // Optional: Validate required fields or specific constraints
     if (!updatedTask.type || !updatedTask.maxComments) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "Task type and maxComments are required",
       });
@@ -609,9 +632,9 @@ app.put("/api/auto-action/tasks/:taskId", async (req, res) => {
     await tasksDb.write();
     if (req.body.rescheduleAfterUpdate) {
       // Resume immediate task by resetting controller and starting execution
-      stopTask(currentTask.id, "clearing paused state"); // Clear any existing controller
+      stopTask(existingTask.id, "clearing paused state"); // Clear any existing controller
       const controller = new AbortController();
-      immediateTaskControllers.set(currentTask.id, controller);
+      immediateTaskControllers.set(existingTask.id, controller);
       // Trigger scheduleTasks to handle any further cleanup or rescheduling
       scheduleTasks({ tasks: [updatedTask] }); // Reschedule tasks after adding a new one
     }
@@ -634,9 +657,8 @@ app.delete("/api/auto-action/tasks/:taskId", async (req, res) => {
     await tasksDb.read();
     const taskIndex = tasksDb.data.findIndex((t) => t.id === req.params.taskId);
     if (taskIndex === -1) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Task not found" });
+      res.status(404).json({ success: false, message: "Task not found" });
+      return;
     }
 
     const task = tasksDb.data[taskIndex];
@@ -717,7 +739,7 @@ const addCommentLog = async (
         tasksDb.data[taskIndex].completedComments >=
         tasksDb.data[taskIndex].maxComments
       ) {
-        tasksDb.data[taskIndex].status = "completed";
+        tasksDb.data[taskIndex].status = TaskStatus.Running;
       }
       await tasksDb.write();
     }
@@ -745,7 +767,9 @@ const initializePlaywright = async (startUp = false) => {
     console.log("正在跳转至小红书首页");
     await page.goto("https://www.xiaohongshu.com");
     // 等待 window._webmsxyw 加载
-    await page.waitForFunction(() => typeof window._webmsxyw === "function");
+    await page.waitForFunction(
+      () => typeof (window as any)._webmsxyw === "function"
+    );
     console.log("window._webmsxyw 已加载");
     await new Promise((resolve) => setTimeout(resolve, 5000)); // 等待 5 秒
     await page.reload();
@@ -819,14 +843,17 @@ async function sign(uri, data, a1, webSession) {
     }
 
     // 确保页面加载完成
-    await page.waitForLoadState("domcontentloaded");
-    await page.waitForFunction(() => typeof window._webmsxyw === "function", {
-      timeout: 10000,
-    });
+    await page!.waitForLoadState("domcontentloaded");
+    await page!.waitForFunction(
+      () => typeof (window as any)._webmsxyw === "function",
+      {
+        timeout: 10000,
+      }
+    );
 
-    const encryptParams = await page.evaluate(
+    const encryptParams = await page!.evaluate(
       ([url, data]) => {
-        return window._webmsxyw(url, data);
+        return (window as any)._webmsxyw(url, data);
       },
       [uri, data]
     );
@@ -884,8 +911,8 @@ app.post("/api/control", async (req, res) => {
 });
 app.get("/api/homefeed/recommend", async (req, res) => {
   try {
-    const feedData = await xhs_client.get_home_feed(
-      req.query.feed_type || FeedType.RECOMMEND
+    const feedData = await xhs_client!.get_home_feed(
+      (req.query.feed_type as FeedType.RECOMMEND) || FeedType.RECOMMEND
     );
     res
       .status(200)
@@ -902,7 +929,7 @@ app.get("/api/homefeed/recommend", async (req, res) => {
 app.post("/api/set-web-session", (req, res) => {
   const { web_session } = req.body;
   const fileData = fs.readFileSync(localFilePath);
-  let parseData = JSON.parse(fileData);
+  let parseData = JSON.parse(fileData.toString());
   // 更新
   if (parseData["web_session"] !== web_session) {
     stopPlaywright();
@@ -945,14 +972,14 @@ app.get("/api/search/notes", async (req, res) => {
       throw new Error("XhsClient 未初始化，请先启动 Playwright");
     }
     const {
-      keywords,
+      keyword,
       page = 1,
       page_size = 20,
       sort = SearchSortType.GENERAL,
       note_type = SearchNoteType.ALL,
-    } = req.query;
+    } = req.query as any;
     const result = await xhs_client.get_note_by_keyword(
-      keywords,
+      keyword as string,
       parseInt(page),
       parseInt(page_size),
       sort,
