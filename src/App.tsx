@@ -1,5 +1,3 @@
-"use client";
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Layout from "./components/layout";

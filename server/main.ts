@@ -17,8 +17,13 @@ import {
   SearchNoteType,
   Note,
 } from "./enums.ts";
-import { sleep } from "./help.ts";
-import { ITask, ILog, TaskStatus, INote } from "./type.ts";
+import {
+  getRandomComment,
+  getRandomDelay,
+  getRandomKeyword,
+  sleep,
+} from "./help.ts";
+import { ITask, ILog, TaskStatus, INote, TriggerType } from "./type.ts";
 
 const app = express();
 const port = 3000;
@@ -90,26 +95,6 @@ export const initializeDatabases = async (): Promise<void> => {
   }
 };
 
-// Function to get random delay between min and max
-const getRandomDelay = (min, max) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-// Function to get random comment
-const getRandomComment = (comments, useRandomEmoji) => {
-  const comment = comments[Math.floor(Math.random() * comments.length)];
-  // const emojis = ["👍", "❤️", "😊", "🔥", "👏"];
-  // return useRandomEmoji
-  //   ? `${comment} ${emojis[Math.floor(Math.random() * emojis.length)]}`
-  //   : comment;
-  return comment;
-};
-const getRandomKeyword = (keywords) => {
-  if (!Array.isArray(keywords) || keywords.length === 0) {
-    throw new Error("task.keywords must be a non-empty array");
-  }
-  const randomIndex = Math.floor(Math.random() * keywords.length);
-  return keywords[randomIndex];
-};
 // Function to fetch all search notes
 const fetchSearchNotes = async (keyword, sortType, note_type = 0) => {
   try {
@@ -131,25 +116,23 @@ const executeTask = async (task) => {
   if (task.status !== "running" || task.completedComments >= task.maxComments) {
     return;
   }
-  const controller = new AbortController();
-  immediateTaskControllers.set(task.id, controller);
-
+  const controller = immediateTaskControllers.get(task.id) as AbortController;
+  let currentTask = tasksDb.data.find((t) => t.id === task.id)!;
+  if (!currentTask) return;
+  let taskId = currentTask.id;
   try {
     // Read logs once to get commented note IDs
     await logsDb.read();
     const commentedNoteIds = new Set(logsDb.data.map((log) => log.noteId));
-
     // Track fetched note IDs to avoid duplicates
     const fetchedNoteIds = new Set();
-    let currentTask = tasksDb.data.find((t) => t.id === task.id);
-    if (!currentTask) return;
+
     // Outer loop to fetch notes until maxComments is reached
     while (
       currentTask.status === "running" &&
       currentTask.completedComments < currentTask.maxComments
     ) {
       let notes: INote[] = [];
-
       // Fetch notes based on task type with a random keyword
       if (task.type === "search") {
         const randomKeyword = getRandomKeyword(task.keywords); // Get random keyword
@@ -161,37 +144,37 @@ const executeTask = async (task) => {
       } else if (task.type === "homepage") {
         notes = await fetchHomepageNotes(); // No keywords for homepage
       }
-      console.log("notes", notes);
-
       if (!notes.length) {
         console.log(`No more notes available for task ${task.id}`);
         break; // Exit if no notes are fetched
       }
-
       // Filter out already fetched notes
       notes = notes.filter((note) => !fetchedNoteIds.has(note.id));
       if (!notes.length) {
         console.log(`All fetched notes were duplicates for task ${task.id}`);
         continue; // Fetch next set if all notes were duplicates
       }
-
       // Add all fetched note IDs to the set
       notes.forEach((note) => fetchedNoteIds.add(note.id));
 
       // Process each note in the fetched set
       await tasksDb.read();
-      currentTask = tasksDb.data.find((t) => t.id === task.id);
+      currentTask = tasksDb.data.find((t) => t.id === task.id)!;
       if (!currentTask) {
         console.log(`Task ${task.id} not found in database`);
         break;
       }
 
       for (const note of notes) {
-        if (controller.signal.aborted) {
+        if (
+          controller.signal.aborted &&
+          currentTask.type === TriggerType.Immediate
+        ) {
           currentTask.status = TaskStatus.Paused;
           await updateTaskData(task.id, "status", "paused");
+          deleteImmediateController(taskId);
           console.log(`Task ${task.id} aborted`);
-          break;
+          return;
         }
 
         if (
@@ -211,22 +194,28 @@ const executeTask = async (task) => {
         }
 
         const comment = getRandomComment(task.comments, task.useRandomEmoji);
+        await sleep(getRandomDelay(task.minDelay, task.maxDelay) * 1000);
         try {
-          await sleep(getRandomDelay(task.minDelay, task.maxDelay) * 1000);
-          console.log(`Commenting on note ${note.id} for task ${task.id}`);
-
+          if (
+            controller.signal.aborted &&
+            currentTask.type === TriggerType.Immediate
+          ) {
+            deleteImmediateController(taskId);
+            console.log(`Task ${task.id} aborted`);
+            return;
+          }
           // // Perform the comment action
           // await xhs_client.comment_note(note.id, comment, note.xsec_token);
-
+          console.log(`Commenting on note ${note.id} for task ${task.id}`);
           // // Update task progress
-          // currentTask.completedComments += 1;
-          // commentedNoteIds.add(note.id); // Add to commented set
-          // await updateTaskData(
-          //   task.id,
-          //   "completedComments",
-          //   currentTask.completedComments
-          // );
-          // broadcastTaskUpdate();
+          currentTask.completedComments += 1;
+          commentedNoteIds.add(note.id); // Add to commented set
+          await updateTaskData(
+            task.id,
+            "completedComments",
+            currentTask.completedComments
+          );
+          broadcastTaskUpdate();
 
           // // Log the successful comment
           // await addCommentLog(
@@ -242,7 +231,7 @@ const executeTask = async (task) => {
             currentTask.status = TaskStatus.Completed;
             await updateTaskData(task.id, "status", "completed");
             console.log(`Task ${task.id} completed: reached maxComments`);
-            break;
+            deleteImmediateController(taskId);
           }
         } catch (error) {
           // Log failed comment attempt but continue with next note
@@ -271,8 +260,7 @@ const executeTask = async (task) => {
       tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
       await tasksDb.write();
     }
-  } finally {
-    immediateTaskControllers.delete(task.id); // Clean up controller
+    deleteImmediateController(currentTask.id);
   }
 };
 // Function to fetch homepage notes
@@ -325,9 +313,7 @@ const scheduleTasks = async ({
       startUp === true &&
       !task.executeOnStartup
     ) {
-      console.log("skip");
-
-      break;
+      continue;
     }
     const existingCronJob = cronJobs.get(task.id);
     // Stop cron job if task is no longer running (for interval tasks)
@@ -335,15 +321,15 @@ const scheduleTasks = async ({
       existingCronJob.stop();
       cronJobs.delete(task.id);
       console.log(`Stopped cron job for task ${task.id}`);
+      continue;
     }
-    // Handle immediate task pausing
-    if (task.triggerType === "immediate" && task.status === "paused") {
-      const controller = immediateTaskControllers.get(task.id);
-      if (controller) {
-        controller.abort(); // Attempt to abort, though limited by async nature
-        immediateTaskControllers.delete(task.id);
-        console.log(`Paused immediate task ${task.id}`);
-      }
+    // Handle  task pausing
+    if (task.status === "paused") {
+      stopTask(task.id);
+      continue;
+    }
+    if (task.status === "completed" || task.status === "error") {
+      continue; // Skip unless restarted
     }
     if (
       task.status === "running" &&
@@ -351,15 +337,22 @@ const scheduleTasks = async ({
     ) {
       task.completedComments = 0;
       task.error = "";
-      tasksDb.write().then(() => executeTask(task));
-    } else if (task.status === "completed" || task.status === "error") {
-      return; // Skip unless restarted
-    } else if (task.status === "idle") {
+      task.status = TaskStatus.Idle;
+      await tasksDb.write();
+      if (task.triggerType === TriggerType.Immediate) {
+        executeTask(task);
+      }
+    }
+
+    if (task.status === "idle") {
       if (task.triggerType === "immediate") {
         task.status = TaskStatus.Running;
+        const controller = new AbortController();
+        immediateTaskControllers.set(task.id, controller);
         task.completedComments = 0; // Reset completedComments on first start
         tasksDb.write().then(() => executeTask(task));
-      } else if (task.triggerType === "scheduled" && task.scheduleTime) {
+      }
+      if (task.triggerType === "scheduled" && task.scheduleTime) {
         const scheduleTime = new Date(task.scheduleTime);
         if (scheduleTime <= new Date()) {
           task.status = TaskStatus.Running;
@@ -376,7 +369,8 @@ const scheduleTasks = async ({
             { scheduled: true }
           );
         }
-      } else if (task.triggerType === "interval" && task.intervalMinutes) {
+      }
+      if (task.triggerType === "interval" && task.intervalMinutes) {
         task.status = TaskStatus.Running;
         tasksDb.write().then(() => {
           const job = cron.schedule(`*/${task.intervalMinutes} * * * *`, () => {
@@ -389,13 +383,15 @@ const scheduleTasks = async ({
     }
   }
 };
+export const deleteImmediateController = (id: any) => {
+  immediateTaskControllers.delete(id);
+};
 // New function to stop a task
 export const stopTask = (taskId, reason = "unknown") => {
   // Stop immediate task
   const controller = immediateTaskControllers.get(taskId);
   if (controller) {
     controller.abort();
-    immediateTaskControllers.delete(taskId);
     console.log(`Immediate task ${taskId} stopped due to ${reason}`);
   }
 
@@ -412,7 +408,58 @@ interface SSEClient {
   id: string; // 唯一标识符
   res: Response; // Express 的 Response 对象
 }
+// Function to add a comment log
+const addCommentLog = async (
+  taskId,
+  noteId,
+  noteTitle,
+  comment,
+  success,
+  error
+) => {
+  try {
+    await logsDb.read();
+    const newLog = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      taskId,
+      noteId,
+      noteTitle,
+      comment,
+      timestamp: new Date().toISOString(),
+      success,
+      error: error || undefined,
+    };
+    logsDb.data.push(newLog);
+    await logsDb.write();
 
+    await tasksDb.read();
+    const taskIndex = tasksDb.data.findIndex((t) => t.id === taskId);
+    if (taskIndex !== -1 && success) {
+      tasksDb.data[taskIndex].completedComments += 1;
+      tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
+      if (
+        tasksDb.data[taskIndex].completedComments >=
+        tasksDb.data[taskIndex].maxComments
+      ) {
+        tasksDb.data[taskIndex].status = TaskStatus.Running;
+      }
+      await tasksDb.write();
+    }
+
+    return newLog;
+  } catch (err) {
+    console.error("Failed to add comment log:", err);
+  }
+};
+
+// Broadcast task updates to all SSE clients
+export const broadcastTaskUpdate = async () => {
+  await tasksDb.read();
+  const data = JSON.stringify(tasksDb.data);
+  sseClients.forEach((client) => {
+    client.res.write(`data: ${data}\n\n`);
+  });
+};
 // 使用 Set 存储 SSE 客户端
 const sseClients: Set<SSEClient> = new Set();
 // SSE endpoint for real-time task updates
@@ -442,16 +489,6 @@ app.get("/api/auto-action/tasks/sse", (req, res) => {
     res.end();
   });
 });
-
-// Broadcast task updates to all SSE clients
-export const broadcastTaskUpdate = async () => {
-  await tasksDb.read();
-  const data = JSON.stringify(tasksDb.data);
-  sseClients.forEach((client) => {
-    client.res.write(`data: ${data}\n\n`);
-  });
-};
-
 // Create a new task
 app.post("/api/auto-action/tasks", async (req, res) => {
   try {
@@ -501,7 +538,6 @@ app.post("/api/auto-action/tasks", async (req, res) => {
     });
   }
 });
-
 // Get all tasks
 app.get("/api/auto-action/tasks", async (req, res) => {
   try {
@@ -520,7 +556,6 @@ app.get("/api/auto-action/tasks", async (req, res) => {
     });
   }
 });
-
 // Get a specific task
 app.get("/api/auto-action/tasks/:taskId", async (req, res) => {
   try {
@@ -542,7 +577,6 @@ app.get("/api/auto-action/tasks/:taskId", async (req, res) => {
     });
   }
 });
-
 // Update task status
 app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
   try {
@@ -560,7 +594,6 @@ app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
     if (currentTask.status === "running" && status === "completed") {
       stopTask(currentTask.id, "status change to completed");
     }
-    console.log(currentTask.status, status);
 
     if (currentTask.status === "paused" && status === "running") {
       // Resume immediate task by resetting controller and starting execution
@@ -568,15 +601,12 @@ app.post("/api/auto-action/tasks/:taskId/status", async (req, res) => {
       // Update the task status
       tasksDb.data[taskIndex].status = status;
       await tasksDb.write();
-      const controller = new AbortController();
-      immediateTaskControllers.set(currentTask.id, controller);
       if (currentTask.triggerType === "immediate") {
+        const controller = new AbortController();
+        immediateTaskControllers.set(currentTask.id, controller);
         execute = true;
         executeTask(tasksDb.data[taskIndex]);
       }
-    }
-    if (status === "paused") {
-      stopTask(currentTask.id, "clearing paused state"); // Clear any existing controller
     }
     // Update the task status
     tasksDb.data[taskIndex].status = status;
@@ -684,7 +714,6 @@ app.delete("/api/auto-action/tasks/:taskId", async (req, res) => {
     });
   }
 });
-
 // Get logs for a specific task
 app.get("/api/auto-action/tasks/:taskId/logs", async (req, res) => {
   try {
@@ -706,132 +735,7 @@ app.get("/api/auto-action/tasks/:taskId/logs", async (req, res) => {
     });
   }
 });
-// Function to add a comment log
-const addCommentLog = async (
-  taskId,
-  noteId,
-  noteTitle,
-  comment,
-  success,
-  error
-) => {
-  try {
-    await logsDb.read();
-    const newLog = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      taskId,
-      noteId,
-      noteTitle,
-      comment,
-      timestamp: new Date().toISOString(),
-      success,
-      error: error || undefined,
-    };
-    logsDb.data.push(newLog);
-    await logsDb.write();
 
-    await tasksDb.read();
-    const taskIndex = tasksDb.data.findIndex((t) => t.id === taskId);
-    if (taskIndex !== -1 && success) {
-      tasksDb.data[taskIndex].completedComments += 1;
-      tasksDb.data[taskIndex].updatedAt = new Date().toISOString();
-      if (
-        tasksDb.data[taskIndex].completedComments >=
-        tasksDb.data[taskIndex].maxComments
-      ) {
-        tasksDb.data[taskIndex].status = TaskStatus.Running;
-      }
-      await tasksDb.write();
-    }
-
-    return newLog;
-  } catch (err) {
-    console.error("Failed to add comment log:", err);
-  }
-};
-// Playwright 配置和初始化
-const initializePlaywright = async (startUp = false) => {
-  try {
-    playwrightStatus = "loading"; // 设置为加载中
-    console.log("正在启动 Playwright");
-    statusEmitter.emit("statusUpdate"); // 触发状态更新
-    browser = await chromium.launch({ headless: true });
-    context = await browser.newContext();
-    // 使用 path.join 指定当前目录下的 stealth.min.js
-    const stealthJsPath = path.join(process.cwd(), "stealth.min.js");
-    // 读取 stealth.min.js 内容
-    const stealthScript = fs.readFileSync(stealthJsPath, "utf8");
-    await context.addInitScript(stealthScript);
-    page = await context.newPage();
-    // 访问小红书首页
-    console.log("正在跳转至小红书首页");
-    await page.goto("https://www.xiaohongshu.com");
-    // 等待 window._webmsxyw 加载
-    await page.waitForFunction(
-      () => typeof (window as any)._webmsxyw === "function"
-    );
-    console.log("window._webmsxyw 已加载");
-    await new Promise((resolve) => setTimeout(resolve, 5000)); // 等待 5 秒
-    await page.reload();
-    await new Promise((resolve) => setTimeout(resolve, 1000)); // 等待 1 秒
-    // 获取 Cookie 中的 a1
-    const cookies = await context.cookies();
-    for (const cookie of cookies) {
-      if (cookie.name === "webId") {
-        webId = cookie.value;
-        console.log(
-          `当前浏览器 Cookie 中 webId 值为：${cookie.value}，请将需要使用的 webId 设置成一样方可签名成功`
-        );
-      }
-      if (cookie.name === "a1") {
-        A1 = cookie.value;
-        console.log(
-          `当前浏览器 Cookie 中 a1 值为：${cookie.value}，请将需要使用的 a1 设置成一样方可签名成功`
-        );
-      }
-    }
-    console.log("跳转小红书首页成功，等待调用");
-    await scheduleTasks({ startUp: true });
-    playwrightStatus = "running"; // 初始化完成后设置为运行中
-    statusEmitter.emit("statusUpdate");
-    localData = fs.readFileSync(localFilePath, "utf8");
-    if (localData) {
-      xhs_client = new XhsClient({
-        cookie: `a1=${A1};webId=${webId};web_session=${
-          JSON.parse(localData).web_session
-        }`,
-        signFunc: sign,
-      });
-      // xhs_client.comment_note(
-      //   "67cc7ae5000000000302817b",
-      //   "第一",
-      //   "ABDQQ7qbuB6fWJoZnzkW49LwaOEipliX-kiWxkqdnv61M"
-      // );
-    }
-  } catch (error) {
-    playwrightStatus = "stopped";
-    statusEmitter.emit("statusUpdate");
-    return {
-      error: error.message,
-    };
-  }
-};
-
-// 停止 Playwright
-const stopPlaywright = async () => {
-  if (browser) {
-    await browser.close();
-    browser = null;
-    context = null;
-    page = null;
-    console.log("Playwright 浏览器已关闭");
-    playwrightStatus = "stopped"; // 关闭后设置为已停止
-  } else {
-    console.log("Playwright 浏览器未启动");
-    playwrightStatus = "stopped";
-  }
-  statusEmitter.emit("statusUpdate"); // 触发状态更新
-};
 // 签名函数
 async function sign(uri, data, a1, webSession) {
   try {
@@ -909,6 +813,88 @@ app.post("/api/control", async (req, res) => {
     res.status(400).json({ error: "无效的操作。请使用 'start' 或 'stop'" });
   }
 });
+// Playwright 配置和初始化
+const initializePlaywright = async (startUp = false) => {
+  try {
+    playwrightStatus = "loading"; // 设置为加载中
+    console.log("正在启动 Playwright");
+    statusEmitter.emit("statusUpdate"); // 触发状态更新
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext();
+    // 使用 path.join 指定当前目录下的 stealth.min.js
+    const stealthJsPath = path.join(process.cwd(), "stealth.min.js");
+    // 读取 stealth.min.js 内容
+    const stealthScript = fs.readFileSync(stealthJsPath, "utf8");
+    await context.addInitScript(stealthScript);
+    page = await context.newPage();
+    // 访问小红书首页
+    console.log("正在跳转至小红书首页");
+    await page.goto("https://www.xiaohongshu.com");
+    // 等待 window._webmsxyw 加载
+    await page.waitForFunction(
+      () => typeof (window as any)._webmsxyw === "function"
+    );
+    console.log("window._webmsxyw 已加载");
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // 等待 5 秒
+    await page.reload();
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // 等待 1 秒
+    // 获取 Cookie 中的 a1
+    const cookies = await context.cookies();
+    for (const cookie of cookies) {
+      if (cookie.name === "webId") {
+        webId = cookie.value;
+        console.log(
+          `当前浏览器 Cookie 中 webId 值为：${cookie.value}，请将需要使用的 webId 设置成一样方可签名成功`
+        );
+      }
+      if (cookie.name === "a1") {
+        A1 = cookie.value;
+        console.log(
+          `当前浏览器 Cookie 中 a1 值为：${cookie.value}，请将需要使用的 a1 设置成一样方可签名成功`
+        );
+      }
+    }
+    console.log("跳转小红书首页成功，等待调用");
+    scheduleTasks({ startUp: true });
+    playwrightStatus = "running"; // 初始化完成后设置为运行中
+    statusEmitter.emit("statusUpdate");
+    localData = fs.readFileSync(localFilePath, "utf8");
+    if (localData) {
+      xhs_client = new XhsClient({
+        cookie: `a1=${A1};webId=${webId};web_session=${
+          JSON.parse(localData).web_session
+        }`,
+        signFunc: sign,
+      });
+      // xhs_client.comment_note(
+      //   "67cc7ae5000000000302817b",
+      //   "第一",
+      //   "ABDQQ7qbuB6fWJoZnzkW49LwaOEipliX-kiWxkqdnv61M"
+      // );
+    }
+  } catch (error) {
+    playwrightStatus = "stopped";
+    statusEmitter.emit("statusUpdate");
+    return {
+      error: error.message,
+    };
+  }
+};
+// 停止 Playwright
+const stopPlaywright = async () => {
+  if (browser) {
+    await browser.close();
+    browser = null;
+    context = null;
+    page = null;
+    console.log("Playwright 浏览器已关闭");
+    playwrightStatus = "stopped"; // 关闭后设置为已停止
+  } else {
+    console.log("Playwright 浏览器未启动");
+    playwrightStatus = "stopped";
+  }
+  statusEmitter.emit("statusUpdate"); // 触发状态更新
+};
 app.get("/api/homefeed/recommend", async (req, res) => {
   try {
     const feedData = await xhs_client!.get_home_feed(
@@ -952,9 +938,7 @@ app.post("/api/set-web-session", (req, res) => {
     res.status(400).json({ error: "web_session 不能为空" });
   }
 });
-
 // 路由：获取 web_session
-
 app.get("/api/get-web-session", (req, res) => {
   fs.readFile(localFilePath, "utf8", (err, data) => {
     if (err) {
@@ -965,7 +949,6 @@ app.get("/api/get-web-session", (req, res) => {
     }
   });
 });
-// server.js
 app.get("/api/search/notes", async (req, res) => {
   try {
     if (!xhs_client) {
@@ -1041,7 +1024,6 @@ app.get("/api/homefeed/categories", async (req, res) => {
     });
   }
 });
-
 // SSE 路由
 app.get("/api/playwright/status", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");

@@ -393,3 +393,23 @@ export function updateSessionCookiesFromCookie(
     .map(([k, v]) => `${k}=${v}`)
     .join(";");
 }
+// Function to get random delay between min and max
+export const getRandomDelay = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+// Function to get random comment
+export const getRandomComment = (comments, useRandomEmoji) => {
+  const comment = comments[Math.floor(Math.random() * comments.length)];
+  // const emojis = ["👍", "❤️", "😊", "🔥", "👏"];
+  // return useRandomEmoji
+  //   ? `${comment} ${emojis[Math.floor(Math.random() * emojis.length)]}`
+  //   : comment;
+  return comment;
+};
+export const getRandomKeyword = (keywords) => {
+  if (!Array.isArray(keywords) || keywords.length === 0) {
+    throw new Error("task.keywords must be a non-empty array");
+  }
+  const randomIndex = Math.floor(Math.random() * keywords.length);
+  return keywords[randomIndex];
+};

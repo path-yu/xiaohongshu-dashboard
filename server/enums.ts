@@ -23,10 +23,10 @@ export enum SearchSortType {
   MOST_POPULAR = "popularity_descending",
 }
 
-export function getSortType(sort: number): SearchSortType {
-  if (sort === 0) return SearchSortType.GENERAL;
-  if (sort === 1) return SearchSortType.LATEST;
-  if (sort === 2) return SearchSortType.MOST_POPULAR;
+export function getSortType(sort: number | string): SearchSortType {
+  if (sort == 0) return SearchSortType.GENERAL;
+  if (sort == 1) return SearchSortType.LATEST;
+  if (sort == 2) return SearchSortType.MOST_POPULAR;
   throw new Error("Invalid sort value");
 }
 

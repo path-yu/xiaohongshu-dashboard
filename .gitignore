@@ -9,7 +9,9 @@
 
 # production
 /build
-
+/server/tasks.json
+/server/logs.json
+/server/local.json
 # debug
 npm-debug.log*
 yarn-debug.log*

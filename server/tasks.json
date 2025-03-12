@@ -1,44 +1,11 @@
 [
   {
-    "updatedAt": "2025-03-11T13:51:30.629Z",
-    "id": "1741359272899-5r2qdjfej",
+    "id": "1741781736960-q8hu8lr83",
     "type": "search",
     "status": "idle",
     "keywords": [
-      "比特币",
-      "合约爆仓",
-      "web3钱包",
-      "以太币",
-      "炒币"
+      "比特币"
     ],
-    "sortType": 1,
-    "comments": [
-      "心累，爆仓了，不想玩了，这是web3的钱包恢复短语，还有不到130u，给刷到的朋友吧，祝好运slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
-      "连续两天被爆仓，放弃了。还有不到130u，给刷到的人吧，这是web3钱包恢复语：slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
-      "多单爆了，不玩了，钱包还有130usdt懒得提，给刷到的朋友吧，这是web.3钱包的12位恢复单词谁想要谁提走吧，祝好运：slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
-      "心累，退圈了，还有130u给需要的人吧，这是web3钱包恢复短语：slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
-      "心累，不想碰加密行业了，还剩130usdt不提了，给加密行业的朋友吧，这是web3钱包的12位恢复语谁想要谁拿走吧，祝大家好运slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
-      "连续两天被爆仓，放弃了。还有不到130u，给刷到的人吧，这是web3钱包恢复语：slot  congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap"
-    ],
-    "useRandomComment": true,
-    "useRandomEmoji": false,
-    "minDelay": 3,
-    "maxDelay": 4,
-    "maxComments": 37,
-    "completedComments": 0,
-    "triggerType": "immediate",
-    "createdAt": "2025-03-07T14:54:32.899Z",
-    "error": "",
-    "note_type": "0",
-    "noteType": 0,
-    "executeOnStartup": true,
-    "rescheduleAfterUpdate": true
-  },
-  {
-    "id": "1741612888419-dt8wp834k",
-    "type": "homepage",
-    "status": "idle",
-    "keywords": [],
     "sortType": 1,
     "comments": [
       "心累，不想碰加密行业了，还剩130usdt懒得提了，给加密行业的朋友吧，这是web3钱包的12位恢复语谁想要谁拿走吧，祝大家一路长虹 slot congress  orbit  panel  hollow  game  hard  advance  crucial  old  drive  swap",
@@ -46,14 +13,14 @@
     ],
     "useRandomComment": true,
     "useRandomEmoji": true,
-    "minDelay": 30,
-    "maxDelay": 185,
-    "maxComments": 49,
+    "minDelay": 2,
+    "maxDelay": 4,
+    "maxComments": 50,
     "completedComments": 0,
     "triggerType": "immediate",
-    "createdAt": "2025-03-10T13:21:28.419Z",
-    "updatedAt": "2025-03-10T13:39:34.566Z",
-    "executeOnStartup": false,
+    "createdAt": "2025-03-12T12:15:36.960Z",
+    "updatedAt": "2025-03-12T13:30:38.456Z",
+    "executeOnStartup": true,
     "rescheduleAfterUpdate": true,
     "error": "",
     "noteType": 0
