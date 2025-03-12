@@ -130,7 +130,8 @@ const executeTask = async (task) => {
     // Outer loop to fetch notes until maxComments is reached
     while (
       currentTask.status === "running" &&
-      currentTask.completedComments < currentTask.maxComments
+      currentTask.completedComments < currentTask.maxComments &&
+      !controller.signal.aborted
     ) {
       let notes: INote[] = [];
       // Fetch notes based on task type with a random keyword
@@ -164,17 +165,14 @@ const executeTask = async (task) => {
         console.log(`Task ${task.id} not found in database`);
         break;
       }
-
       for (const note of notes) {
         if (
           controller.signal.aborted &&
-          currentTask.type === TriggerType.Immediate
+          currentTask.triggerType == TriggerType.Immediate
         ) {
-          currentTask.status = TaskStatus.Paused;
-          await updateTaskData(task.id, "status", "paused");
           deleteImmediateController(taskId);
           console.log(`Task ${task.id} aborted`);
-          return;
+          break;
         }
 
         if (
@@ -198,11 +196,11 @@ const executeTask = async (task) => {
         try {
           if (
             controller.signal.aborted &&
-            currentTask.type === TriggerType.Immediate
+            currentTask.triggerType === TriggerType.Immediate
           ) {
             deleteImmediateController(taskId);
             console.log(`Task ${task.id} aborted`);
-            return;
+            break;
           }
           // // Perform the comment action
           // await xhs_client.comment_note(note.id, comment, note.xsec_token);

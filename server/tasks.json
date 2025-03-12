@@ -2,7 +2,7 @@
   {
     "id": "1741781736960-q8hu8lr83",
     "type": "search",
-    "status": "idle",
+    "status": "completed",
     "keywords": [
       "比特币"
     ],
@@ -16,10 +16,10 @@
     "minDelay": 2,
     "maxDelay": 4,
     "maxComments": 50,
-    "completedComments": 0,
+    "completedComments": 9,
     "triggerType": "immediate",
     "createdAt": "2025-03-12T12:15:36.960Z",
-    "updatedAt": "2025-03-12T13:30:38.456Z",
+    "updatedAt": "2025-03-12T13:51:58.238Z",
     "executeOnStartup": true,
     "rescheduleAfterUpdate": true,
     "error": "",
