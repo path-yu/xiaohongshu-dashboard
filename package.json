@@ -6,7 +6,6 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "vite start",
-    "pkg": "npm run build && node runPkg.js",
     "server": "cd ./server && tsx ./main.ts"
   },
   "type": "module",

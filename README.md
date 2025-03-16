@@ -1,11 +1,40 @@
-# React + TypeScript + Vite
+# Xiaohongshu API Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is a control panel for calling the Xiaohongshu API, built with React, TypeScript, and Vite. It includes features such as language context with local storage persistence and various scripts for development and production.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Development
+
+To start the development server, run:
+
+```bash
+npm run dev
+```
+
+### Build
+
+To build the project for production, run:
+
+```bash
+npm run build
+```
+
+### Start
+
+To start the production server, run:
+
+```bash
+npm run start
+```
+
+### Server
+
+To start the server for handling API requests, run:
+
+```bash
+npm run server
+```
 
 ## Expanding the ESLint configuration
 
