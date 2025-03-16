@@ -290,13 +290,9 @@ class XhsClient {
     return await this.post(uri, data);
   }
 
-  async comment_note(
-    note_id: string,
-    content: string,
-    xsec_token: string
-  ): Promise<any> {
+  async comment_note(note_id: string, content: string): Promise<any> {
     const uri = "/api/sns/web/v1/comment/post";
-    const data = { note_id, content, at_users: [], xsec_token };
+    const data = { note_id, content, at_users: [] };
     return await this.post(uri, data);
   }
 

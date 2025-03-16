@@ -29,6 +29,7 @@ import { useLocation } from "react-router-dom";
 import { usePlaywright } from "../contexts/playwright-context";
 import { usePostContext } from "../contexts/post-context";
 import { useTheme } from "../contexts/theme-context";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 export default function Navbar() {
   const location = useLocation();
@@ -43,6 +44,7 @@ export default function Navbar() {
   } = usePlaywright();
   const { currentPosts } = usePostContext();
   const { mode, toggleTheme } = useTheme();
+  const { translations } = useLanguage(); // Use language context
 
   // Determine if all current posts are selected
   const allSelected = React.useMemo(() => {
@@ -64,20 +66,20 @@ export default function Navbar() {
   };
 
   // Get page title based on current path
-  const getPageTitle = () => {
+  const getPageTitle = (): string => {
     switch (location.pathname) {
       case "/":
-        return "Dashboard";
+        return translations.dashboard as string;
       case "/settings":
-        return "Settings";
+        return translations.settings as string;
       case "/templates":
-        return "Comment Templates";
+        return translations.commentTemplates as string;
       case "/search":
-        return "Search Posts";
+        return translations.searchPosts as string;
       case "/auto-action":
-        return "Auto Action";
+        return translations.autoAction as string;
       default:
-        return "Dashboard";
+        return translations.dashboard as string;
     }
   };
 
@@ -136,7 +138,9 @@ export default function Navbar() {
               }
               label={
                 <Typography variant="body2" color="white">
-                  {allSelected ? "取消全选" : "全选"}
+                  {allSelected
+                    ? (translations.deselectAll as string)
+                    : (translations.selectAll as string)}
                 </Typography>
               }
               sx={{ mr: 2 }}
@@ -146,7 +150,9 @@ export default function Navbar() {
         {/* Theme Toggle Button */}
         <Tooltip
           title={
-            mode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"
+            mode === "light"
+              ? (translations.switchToDarkMode as string)
+              : (translations.switchToLightMode as string)
           }
         >
           <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 1 }}>
@@ -187,7 +193,7 @@ export default function Navbar() {
               playwrightStatus === "checking"
             }
           >
-            启动
+            {translations.start as string}
           </Button>
           <Button
             startIcon={<StopIcon />}
@@ -199,9 +205,9 @@ export default function Navbar() {
             }
             color="error"
           >
-            停止
+            {translations.stop as string}
           </Button>
-          <Tooltip title="重新连接状态监控">
+          <Tooltip title={translations.reconnectStatus as string}>
             <Button
               onClick={reconnect}
               disabled={
@@ -222,7 +228,7 @@ export default function Navbar() {
             onClick={openCommentModal}
             sx={{ mr: 2 }}
           >
-            Add Comment ({selectedPosts.length})
+            {translations.addComment as string} ({selectedPosts.length})
           </Button>
         )}
 

@@ -25,6 +25,7 @@ import { useToast } from "../contexts/toast-context";
 import { usePlaywright } from "../contexts/playwright-context";
 import { getWebSession, setWebSession } from "../services/settings-service";
 import { useTheme } from "../contexts/theme-context";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 interface Settings {
   web_session: string;
@@ -42,8 +43,8 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const { startBrowser, status: playwrightStatus } = usePlaywright();
   const { mode, setThemeMode } = useTheme();
-  const muiTheme = useMuiTheme();
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+  const { language, setLanguage, translations } = useLanguage(); // Use language context
 
   // Load settings from localStorage and API
   useEffect(() => {
@@ -106,6 +107,15 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLanguageChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newLanguage: string | null
+  ) => {
+    if (newLanguage) {
+      setLanguage(newLanguage as "en" | "zh");
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -158,10 +168,10 @@ export default function SettingsPage() {
           <Card>
             <CardContent>
               <Typography variant="h5" component="div" gutterBottom>
-                Account Settings
+                {translations.accountSettings as string}
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Configure your Xiaohongshu account credentials for API access
+                {translations.configureAccount as string}
               </Typography>
 
               <Divider sx={{ my: 3 }} />
@@ -177,7 +187,7 @@ export default function SettingsPage() {
                       onChange={handleChange}
                       variant="outlined"
                       required
-                      helperText="Your Xiaohongshu web_session cookie value"
+                      helperText={translations.webSessionHelper as string}
                     />
                   </Grid>
 
@@ -191,7 +201,7 @@ export default function SettingsPage() {
                           color="primary"
                         />
                       }
-                      label="保存后自动启动 Playwright"
+                      label={translations.autoStartPlaywright as string}
                     />
                   </Grid>
 
@@ -206,7 +216,9 @@ export default function SettingsPage() {
                       disabled={loading}
                       sx={{ mt: 2 }}
                     >
-                      {loading ? "Saving..." : "Save Settings"}
+                      {loading
+                        ? (translations.saving as string)
+                        : (translations.saveSettings as string)}
                     </Button>
                   </Grid>
                 </Grid>
@@ -225,28 +237,27 @@ export default function SettingsPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                How to find your credentials
+                {translations.findCredentials as string}
               </Typography>
 
               <Typography variant="body2" paragraph>
-                1. Log in to Xiaohongshu in your browser
+                {translations.step1 as string}
               </Typography>
 
               <Typography variant="body2" paragraph>
-                2. Open Developer Tools (F12 or right-click and select
-                "Inspect")
+                {translations.step2 as string}
               </Typography>
 
               <Typography variant="body2" paragraph>
-                3. Go to the "Application" tab, then "Cookies"
+                {translations.step3 as string}
               </Typography>
 
               <Typography variant="body2" paragraph>
-                4. Find and copy the values for "web_session"
+                {translations.step4 as string}
               </Typography>
 
               <Alert severity="warning" sx={{ mt: 2 }}>
-                Keep your credentials secure and never share them with others.
+                {translations.keepCredentialsSecure as string}
               </Alert>
             </CardContent>
           </Card>
@@ -255,14 +266,14 @@ export default function SettingsPage() {
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Appearance Settings
+                {translations.appearanceSettings as string}
               </Typography>
 
               <Divider sx={{ my: 2 }} />
 
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  Theme Mode
+                  {translations.themeMode as string}
                 </Typography>
                 <ToggleButtonGroup
                   value={mode}
@@ -277,7 +288,7 @@ export default function SettingsPage() {
                     sx={{ flex: 1 }}
                   >
                     <LightModeIcon sx={{ mr: 1 }} />
-                    Light
+                    {translations.light as string}
                   </ToggleButton>
                   <ToggleButton
                     value="dark"
@@ -285,7 +296,7 @@ export default function SettingsPage() {
                     sx={{ flex: 1 }}
                   >
                     <DarkModeIcon sx={{ mr: 1 }} />
-                    Dark
+                    {translations.dark as string}
                   </ToggleButton>
                 </ToggleButtonGroup>
                 <Typography
@@ -293,22 +304,65 @@ export default function SettingsPage() {
                   color="text.secondary"
                   sx={{ mt: 1 }}
                 >
-                  Current theme: {mode === "light" ? "Light Mode" : "Dark Mode"}
+                  {translations.currentTheme as string}:{" "}
+                  {mode === "light"
+                    ? (translations.lightMode as string)
+                    : (translations.darkMode as string)}
                 </Typography>
                 <Typography
                   variant="body2"
                   color="text.secondary"
                   sx={{ mt: 1 }}
                 >
-                  System preference:{" "}
-                  {prefersDarkMode ? "Dark Mode" : "Light Mode"}
+                  {translations.systemPreference as string}:{" "}
+                  {prefersDarkMode
+                    ? (translations.darkMode as string)
+                    : (translations.lightMode as string)}
                 </Typography>
               </Box>
 
               <Alert severity="info" sx={{ mt: 2 }}>
-                Theme settings are saved automatically and will persist across
-                sessions.
+                {translations.themeSettingsInfo as string}
               </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Language Settings Card */}
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                {translations.languageSettings as string}
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  {translations.language as string}
+                </Typography>
+                <ToggleButtonGroup
+                  value={language}
+                  exclusive
+                  onChange={handleLanguageChange}
+                  aria-label="language"
+                  sx={{ width: "100%" }}
+                >
+                  <ToggleButton
+                    value="en"
+                    aria-label="English"
+                    sx={{ flex: 1 }}
+                  >
+                    English
+                  </ToggleButton>
+                  <ToggleButton
+                    value="zh"
+                    aria-label="Chinese"
+                    sx={{ flex: 1 }}
+                  >
+                    中文
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
             </CardContent>
           </Card>
         </Grid>

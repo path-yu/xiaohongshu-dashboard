@@ -8,6 +8,7 @@ import {
 import { SSEConnection } from "../services/sse-service";
 import { useToast } from "./toast-context";
 import { api } from "../services/api-service";
+import { useLanguage } from "./language-context"; // Import language context
 
 type PlaywrightStatus = PlaywrightStatusType | "checking" | "disconnected";
 
@@ -28,9 +29,10 @@ export function PlaywrightProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { translations } = useLanguage(); // Use language context
   const [status, setStatus] = React.useState<PlaywrightStatus>("checking");
   const [statusMessage, setStatusMessage] = React.useState<string>(
-    "正在检查 Playwright 状态..."
+    translations.checkingPlaywrightStatus as string
   );
   const sseConnectionRef =
     React.useRef<SSEConnection<PlaywrightStatusResponse> | null>(null);
@@ -41,14 +43,16 @@ export function PlaywrightProvider({
     (data: PlaywrightStatusResponse) => {
       if (data.error) {
         setStatus("disconnected");
-        setStatusMessage(`状态检查失败: ${data.error}`);
+        setStatusMessage(
+          `${translations.statusCheckFailed as string}: ${data.error}`
+        );
         return;
       }
 
       setStatus(data.status);
       setStatusMessage(data.message);
     },
-    []
+    [translations]
   );
 
   // Initialize SSE connection
@@ -70,7 +74,7 @@ export function PlaywrightProvider({
         onError: (error: any) => {
           console.error("Playwright status SSE error:", error);
           setStatus("disconnected");
-          setStatusMessage("Playwright 状态监控连接断开");
+          setStatusMessage(translations.playwrightStatusDisconnected as string);
         },
         reconnectDelay: 3000,
         maxReconnectAttempts: 5,
@@ -83,7 +87,7 @@ export function PlaywrightProvider({
     return () => {
       connection.close();
     };
-  }, [handleStatusUpdate]);
+  }, [handleStatusUpdate, translations]);
 
   // Initialize SSE on mount
   React.useEffect(() => {
@@ -97,13 +101,13 @@ export function PlaywrightProvider({
 
   const reconnect = React.useCallback(() => {
     setStatus("checking");
-    setStatusMessage("正在重新连接 Playwright 状态监控...");
+    setStatusMessage(translations.reconnectingPlaywrightStatus as string);
     initSSEConnection();
-  }, [initSSEConnection]);
+  }, [initSSEConnection, translations]);
 
   const startBrowser = async () => {
     if (status === "running") {
-      showToast("Playwright 已经在运行中", "info");
+      showToast(translations.playwrightAlreadyRunning as string, "info");
       return;
     }
 
@@ -113,17 +117,21 @@ export function PlaywrightProvider({
       if (response.error) {
         showToast(response.error, "error");
       } else {
-        showToast(response.message || "Playwright 启动命令已发送", "success");
+        showToast(
+          response.message ||
+            (translations.playwrightStartCommandSent as string),
+          "success"
+        );
       }
     } catch (error) {
       console.error("Start browser error:", error);
-      showToast("启动失败，请检查网络连接", "error");
+      showToast(translations.startFailedCheckNetwork as string, "error");
     }
   };
 
   const stopBrowser = async () => {
     if (status === "stopped") {
-      showToast("Playwright 未启动", "info");
+      showToast(translations.playwrightNotStarted as string, "info");
       return;
     }
 
@@ -133,11 +141,15 @@ export function PlaywrightProvider({
       if (response.error) {
         showToast(response.error, "error");
       } else {
-        showToast(response.message || "Playwright 停止命令已发送", "success");
+        showToast(
+          response.message ||
+            (translations.playwrightStopCommandSent as string),
+          "success"
+        );
       }
     } catch (error) {
       console.error("Stop browser error:", error);
-      showToast("停止失败，请检查网络连接", "error");
+      showToast(translations.stopFailedCheckNetwork as string, "error");
     }
   };
 

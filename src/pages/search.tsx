@@ -31,6 +31,7 @@ import {
   SearchNoteType,
 } from "../services/search-service";
 import { usePlaywright } from "../contexts/playwright-context";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +46,7 @@ export default function SearchPage() {
   const { isCommentModalOpen } = useCommentStore();
   const { setCurrentPosts } = usePostContext();
   const { status: playwrightStatus } = usePlaywright();
+  const { translations } = useLanguage(); // Use language context
 
   // Update current posts when search results change
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function SearchPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" component="div" gutterBottom>
-            搜索小红书笔记
+            {translations.searchXiaohongshuNotes as string}
           </Typography>
 
           <form onSubmit={handleSearch}>
@@ -149,7 +151,7 @@ export default function SearchPage() {
                 <TextField
                   fullWidth
                   variant="outlined"
-                  placeholder="输入关键词搜索笔记..."
+                  placeholder={translations.enterKeywordsToSearch as string}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   InputProps={{
@@ -164,32 +166,48 @@ export default function SearchPage() {
 
               <Grid item xs={6} md={2}>
                 <FormControl fullWidth>
-                  <InputLabel id="sort-type-label">排序方式</InputLabel>
+                  <InputLabel id="sort-type-label">
+                    {translations.sortType as string}
+                  </InputLabel>
                   <Select
                     labelId="sort-type-label"
                     value={sortType}
-                    label="排序方式"
+                    label={translations.sortType as string}
                     onChange={handleSortChange}
                   >
-                    <MenuItem value={SearchSortType.GENERAL}>综合排序</MenuItem>
-                    <MenuItem value={SearchSortType.LATEST}>最新排序</MenuItem>
-                    <MenuItem value={SearchSortType.HOT}>最热排序</MenuItem>
+                    <MenuItem value={SearchSortType.GENERAL}>
+                      {translations.generalSort as string}
+                    </MenuItem>
+                    <MenuItem value={SearchSortType.LATEST}>
+                      {translations.latestSort as string}
+                    </MenuItem>
+                    <MenuItem value={SearchSortType.HOT}>
+                      {translations.hotSort as string}
+                    </MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
 
               <Grid item xs={6} md={2}>
                 <FormControl fullWidth>
-                  <InputLabel id="note-type-label">笔记类型</InputLabel>
+                  <InputLabel id="note-type-label">
+                    {translations.noteType as string}
+                  </InputLabel>
                   <Select
                     labelId="note-type-label"
                     value={noteType}
-                    label="笔记类型"
+                    label={translations.noteType as string}
                     onChange={handleNoteTypeChange}
                   >
-                    <MenuItem value={SearchNoteType.ALL}>所有笔记</MenuItem>
-                    <MenuItem value={SearchNoteType.VIDEO}>视频笔记</MenuItem>
-                    <MenuItem value={SearchNoteType.IMAGE}>图文笔记</MenuItem>
+                    <MenuItem value={SearchNoteType.ALL}>
+                      {translations.allNotes as string}
+                    </MenuItem>
+                    <MenuItem value={SearchNoteType.VIDEO}>
+                      {translations.videoNotes as string}
+                    </MenuItem>
+                    <MenuItem value={SearchNoteType.IMAGE}>
+                      {translations.imageNotes as string}
+                    </MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -206,7 +224,7 @@ export default function SearchPage() {
                   {loading ? (
                     <CircularProgress size={24} color="inherit" />
                   ) : (
-                    "搜索"
+                    (translations.search as string)
                   )}
                 </Button>
               </Grid>
@@ -228,7 +246,7 @@ export default function SearchPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                "{searchQuery}" 的搜索结果
+                {`${translations.searchResultsFor} ${searchQuery}`}
               </Typography>
               <PostList posts={searchResults} />
             </CardContent>
@@ -237,9 +255,11 @@ export default function SearchPage() {
           <Card>
             <CardContent>
               <Box sx={{ textAlign: "center", py: 5 }}>
-                <Typography variant="h6">未找到结果</Typography>
+                <Typography variant="h6">
+                  {translations.noResultsFound as string}
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  尝试不同的关键词或检查搜索条件
+                  {translations.tryDifferentKeywords as string}
                 </Typography>
               </Box>
             </CardContent>
@@ -252,9 +272,11 @@ export default function SearchPage() {
               <SearchIcon
                 sx={{ fontSize: 60, color: "text.secondary", mb: 2 }}
               />
-              <Typography variant="h6">搜索小红书笔记</Typography>
+              <Typography variant="h6">
+                {translations.searchXiaohongshuNotes as string}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
-                在上方输入关键词以查找笔记
+                {translations.enterKeywordsAbove as string}
               </Typography>
             </Box>
           </CardContent>

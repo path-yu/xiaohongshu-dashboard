@@ -14,18 +14,40 @@ import CommentIcon from "@mui/icons-material/Comment";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Typography from "@mui/material/Typography";
 import { Link, useLocation } from "react-router-dom";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
   const location = useLocation();
+  const { translations } = useLanguage(); // Use language context
 
   const menuItems = [
-    { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
-    { text: "Search Posts", icon: <SearchIcon />, path: "/search" },
-    { text: "Auto Action", icon: <AutoAwesomeIcon />, path: "/auto-action" },
-    { text: "Comment Templates", icon: <CommentIcon />, path: "/templates" },
-    { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
+    {
+      text: translations.dashboard as string,
+      icon: <DashboardIcon />,
+      path: "/",
+    },
+    {
+      text: translations.searchPosts as string,
+      icon: <SearchIcon />,
+      path: "/search",
+    },
+    {
+      text: translations.autoAction as string,
+      icon: <AutoAwesomeIcon />,
+      path: "/auto-action",
+    },
+    {
+      text: translations.commentTemplates as string,
+      icon: <CommentIcon />,
+      path: "/templates",
+    },
+    {
+      text: translations.settings as string,
+      icon: <SettingsIcon />,
+      path: "/settings",
+    },
   ];
 
   return (

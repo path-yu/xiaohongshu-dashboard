@@ -2,7 +2,7 @@
   {
     "id": "1741781736960-q8hu8lr83",
     "type": "search",
-    "status": "completed",
+    "status": "idle",
     "keywords": [
       "比特币"
     ],
@@ -13,14 +13,14 @@
     ],
     "useRandomComment": true,
     "useRandomEmoji": true,
-    "minDelay": 2,
-    "maxDelay": 4,
+    "minDelay": 65,
+    "maxDelay": 75,
     "maxComments": 50,
-    "completedComments": 9,
+    "completedComments": 0,
     "triggerType": "immediate",
     "createdAt": "2025-03-12T12:15:36.960Z",
-    "updatedAt": "2025-03-12T13:51:58.238Z",
-    "executeOnStartup": true,
+    "updatedAt": "2025-03-16T12:27:51.345Z",
+    "executeOnStartup": false,
     "rescheduleAfterUpdate": true,
     "error": "",
     "noteType": 0

@@ -11,30 +11,70 @@ import { PostProvider } from "./contexts/post-context";
 import { ThemeProvider } from "./contexts/theme-context";
 import { ToastProvider } from "./contexts/toast-context";
 import CssBaseline from "@mui/material/CssBaseline";
-
+import { KeepAlive, AliveScope } from "react-activation";
+import { LanguageProvider } from "./contexts/language-context"; //
 function App() {
   const location = useLocation();
 
   return (
     <ThemeProvider>
       <CssBaseline />
-      <ToastProvider>
-        <PlaywrightProvider>
-          <PostProvider>
-            <AnimatePresence mode="wait">
-              <Routes location={location} key={location.pathname}>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="search" element={<SearchPage />} />
-                  <Route path="auto-action" element={<AutoActionPage />} />
-                  <Route path="templates" element={<TemplatesPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                </Route>
-              </Routes>
-            </AnimatePresence>
-          </PostProvider>
-        </PlaywrightProvider>
-      </ToastProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <PlaywrightProvider>
+            <PostProvider>
+              <AliveScope>
+                <AnimatePresence mode="wait">
+                  <Routes location={location} key={location.pathname}>
+                    <Route path="/" element={<Layout />}>
+                      <Route
+                        index
+                        element={
+                          <KeepAlive>
+                            <Dashboard />
+                          </KeepAlive>
+                        }
+                      />
+                      <Route
+                        path="search"
+                        element={
+                          <KeepAlive>
+                            <SearchPage />
+                          </KeepAlive>
+                        }
+                      />
+                      <Route
+                        path="auto-action"
+                        element={
+                          <KeepAlive>
+                            <AutoActionPage />
+                          </KeepAlive>
+                        }
+                      />
+                      <Route
+                        path="templates"
+                        element={
+                          <KeepAlive>
+                            <TemplatesPage />
+                          </KeepAlive>
+                        }
+                      />
+                      <Route
+                        path="settings"
+                        element={
+                          <KeepAlive>
+                            <SettingsPage />
+                          </KeepAlive>
+                        }
+                      />
+                    </Route>
+                  </Routes>
+                </AnimatePresence>
+              </AliveScope>
+            </PostProvider>
+          </PlaywrightProvider>
+        </ToastProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

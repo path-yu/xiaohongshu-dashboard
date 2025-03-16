@@ -13,7 +13,7 @@ export default function Layout() {
     <Box sx={{ display: "flex" }}>
       <Navbar />
       <Sidebar />
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, ml: { sm: 30 } }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, padding: "40px" }}>
         <AnimatePresence mode="wait">
           <PageTransition key={location.pathname}>
             <Outlet />

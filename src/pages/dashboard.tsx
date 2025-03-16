@@ -26,6 +26,8 @@ import { usePlaywright } from "../contexts/playwright-context";
 import { useToast } from "../contexts/toast-context";
 import { usePostContext } from "../contexts/post-context";
 import AnimatedCard from "../components/animated-card";
+import { useLanguage } from "../contexts/language-context"; // Import language context
+
 export default function Dashboard() {
   const [tabValue, setTabValue] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const { status: playwrightStatus } = usePlaywright();
   const { showToast } = useToast();
   const { setCurrentPosts } = usePostContext();
+  const { translations } = useLanguage(); // Use language context
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
@@ -238,15 +241,13 @@ export default function Dashboard() {
                 }}
               >
                 <Typography variant="h5" component="div">
-                  小红书帖子
+                  {translations.xiaohongshuPosts as string}
                 </Typography>
 
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   {playwrightStatus !== "running" && (
                     <Alert severity="warning" sx={{ mr: 2 }}>
-                      Playwright{" "}
-                      {playwrightStatus === "loading" ? "正在启动中" : "未运行"}
-                      ，显示的是示例数据
+                      {translations.playwrightNotRunning as string}
                     </Alert>
                   )}
 
@@ -257,7 +258,7 @@ export default function Dashboard() {
                     onClick={handleRefresh}
                     disabled={loading || loadingCategories}
                   >
-                    刷新
+                    {translations.refresh as string}
                   </Button>
                 </Box>
               </Box>
@@ -297,7 +298,7 @@ export default function Dashboard() {
                         size="small"
                         onClick={handleRefresh}
                       >
-                        重试
+                        {translations.retry as string}
                       </Button>
                     }
                   >
@@ -306,20 +307,24 @@ export default function Dashboard() {
 
                   {/* Show mock data even when there's an error */}
                   <Typography variant="subtitle1" sx={{ mb: 2, mt: 4 }}>
-                    示例数据：
+                    {translations.mockData as string}
                   </Typography>
                   <PostList
                     posts={Array(6)
                       .fill(null)
                       .map((_, index) => ({
                         id: `mock-error-${index}`,
-                        title: `示例帖子 ${index + 1}`,
-                        content: `这是一个示例帖子内容，API 请求失败时显示。`,
-                        author: `用户${Math.floor(Math.random() * 1000)}`,
+                        title: `${translations.mockPost} ${index + 1}`,
+                        content: translations.mockPostContent as string,
+                        author: `${translations.user}${Math.floor(
+                          Math.random() * 1000
+                        )}`,
                         likes: Math.floor(Math.random() * 1000),
                         comments: Math.floor(Math.random() * 100),
                         imageUrl: `https://via.placeholder.com/200x200?text=Error+${index}`,
-                        category: categories[tabValue]?.name || "未分类",
+                        category:
+                          (categories[tabValue]?.name as string) ||
+                          (translations.uncategorized as string),
                       }))}
                   />
                 </Box>

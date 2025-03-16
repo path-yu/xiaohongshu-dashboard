@@ -27,6 +27,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import type { CommentTemplate } from "../types";
 import { useToast } from "../contexts/toast-context";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<CommentTemplate[]>([]);
@@ -36,6 +37,7 @@ export default function TemplatesPage() {
     useState<CommentTemplate | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
   const { showToast } = useToast();
+  const { translations } = useLanguage(); // Use language context
 
   // Form state
   const [templateName, setTemplateName] = useState("");
@@ -218,7 +220,9 @@ export default function TemplatesPage() {
               mb: 3,
             }}
           >
-            <Typography variant="h5">Comment Templates</Typography>
+            <Typography variant="h5">
+              {translations.commentTemplates as string}
+            </Typography>
             <Box>
               <Button
                 variant="outlined"
@@ -226,7 +230,7 @@ export default function TemplatesPage() {
                 onClick={() => setImportDialogOpen(true)}
                 sx={{ mr: 2 }}
               >
-                批量导入
+                {translations.bulkImport as string}
               </Button>
               <Button
                 variant="contained"
@@ -234,7 +238,7 @@ export default function TemplatesPage() {
                 startIcon={<AddIcon />}
                 onClick={handleAddTemplate}
               >
-                Add Template
+                {translations.addTemplate as string}
               </Button>
             </Box>
           </Box>
@@ -244,13 +248,13 @@ export default function TemplatesPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Template List
+                {translations.templateList as string}
               </Typography>
 
               {templates.length === 0 ? (
                 <Box sx={{ textAlign: "center", py: 4 }}>
                   <Typography color="text.secondary">
-                    No templates yet. Click "Add Template" to create one.
+                    {translations.noTemplates as string}
                   </Typography>
                 </Box>
               ) : (
@@ -304,51 +308,39 @@ export default function TemplatesPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Tips for Effective Comments
+                {translations.tipsForEffectiveComments as string}
               </Typography>
 
               <Typography variant="body2" paragraph>
-                Creating effective comment templates can help you engage with
-                posts more efficiently.
+                {translations.creatingEffectiveCommentTemplates as string}
               </Typography>
 
               <Typography variant="subtitle2" gutterBottom>
-                Best Practices:
+                {translations.bestPractices as string}
               </Typography>
 
               <Box component="ul" sx={{ pl: 2 }}>
                 <li>
                   <Typography variant="body2">
-                    Keep comments relevant to the post content
+                    {translations.keepCommentsRelevant as string}
                   </Typography>
                 </li>
                 <li>
                   <Typography variant="body2">
-                    Use emojis to add personality
+                    {translations.useEmojis as string}
                   </Typography>
                 </li>
                 <li>
                   <Typography variant="body2">
-                    Ask thoughtful questions to encourage engagement
+                    {translations.askThoughtfulQuestions as string}
                   </Typography>
                 </li>
                 <li>
                   <Typography variant="body2">
-                    Avoid generic comments that look automated
+                    {translations.avoidGenericComments as string}
                   </Typography>
                 </li>
               </Box>
-
-              {/* <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Template Variables:
-                </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  <Chip label="{author}" size="small" />
-                  <Chip label="{title}" size="small" />
-                  <Chip label="{category}" size="small" />
-                </Box>
-              </Box> */}
             </CardContent>
           </Card>
         </Grid>
@@ -362,13 +354,15 @@ export default function TemplatesPage() {
         fullWidth
       >
         <DialogTitle>
-          {currentTemplate ? "Edit Template" : "Add New Template"}
+          {currentTemplate
+            ? (translations.editTemplate as string)
+            : (translations.addNewTemplate as string)}
         </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Template Name"
+            label={translations.templateName as string}
             fullWidth
             variant="outlined"
             value={templateName}
@@ -377,7 +371,7 @@ export default function TemplatesPage() {
           />
           <TextField
             margin="dense"
-            label="Comment Content"
+            label={translations.commentContent as string}
             fullWidth
             multiline
             rows={4}
@@ -387,13 +381,15 @@ export default function TemplatesPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)}>
+            {translations.cancel as string}
+          </Button>
           <Button
             onClick={handleSaveTemplate}
             variant="contained"
             color="primary"
           >
-            Save
+            {translations.save as string}
           </Button>
         </DialogActions>
       </Dialog>
@@ -405,10 +401,12 @@ export default function TemplatesPage() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>批量导入评论模板</DialogTitle>
+        <DialogTitle>
+          {translations.bulkImportCommentTemplates as string}{" "}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" paragraph sx={{ mt: 1 }}>
-            请输入多个评论内容，使用 / 符号分隔不同的评论。
+            {translations.enterMultipleComments as string}
           </Typography>
           <TextField
             autoFocus
@@ -416,7 +414,7 @@ export default function TemplatesPage() {
             multiline
             rows={8}
             variant="outlined"
-            placeholder="例如：这个太棒了！/请问在哪里可以买到？/非常喜欢这个内容"
+            placeholder={translations.bulkImportPlaceholder as string}
             value={bulkImportText}
             onChange={(e) => setBulkImportText(e.target.value)}
             sx={{ mb: 3 }}
@@ -426,7 +424,7 @@ export default function TemplatesPage() {
             <>
               <TextField
                 fullWidth
-                label="模板标题"
+                label={translations.templateTitle as string}
                 value={bulkTemplateTitle}
                 onChange={(e) => setBulkTemplateTitle(e.target.value)}
                 sx={{ mb: 2 }}
@@ -434,15 +432,17 @@ export default function TemplatesPage() {
                 error={!bulkTemplateTitle.trim()}
                 helperText={
                   !bulkTemplateTitle.trim()
-                    ? "请输入模板标题"
+                    ? (translations.enterTemplateTitle as string)
                     : parsedTemplates.length > 1
-                    ? `将自动生成: ${bulkTemplateTitle} 1, ${bulkTemplateTitle} 2, ...`
+                    ? `${translations.autoGenerate}: ${bulkTemplateTitle} 1, ${bulkTemplateTitle} 2, ...`
                     : ""
                 }
               />
 
               <Typography variant="subtitle2" gutterBottom>
-                已解析 {parsedTemplates.length} 条评论:
+                {(translations.parsedComments as Function)(
+                  parsedTemplates.length
+                )}
               </Typography>
 
               <Box sx={{ maxHeight: "250px", overflow: "auto", mb: 2 }}>
@@ -468,7 +468,7 @@ export default function TemplatesPage() {
               setBulkTemplateTitle("");
             }}
           >
-            取消
+            {translations.cancel as string}
           </Button>
           {parsedTemplates.length === 0 ? (
             <Button
@@ -476,7 +476,7 @@ export default function TemplatesPage() {
               variant="contained"
               color="primary"
             >
-              解析评论
+              {translations.parseComments as string}
             </Button>
           ) : (
             <Button
@@ -485,7 +485,7 @@ export default function TemplatesPage() {
               color="primary"
               disabled={!bulkTemplateTitle.trim()}
             >
-              保存全部模板
+              {translations.saveAllTemplates as string}
             </Button>
           )}
         </DialogActions>
@@ -496,17 +496,18 @@ export default function TemplatesPage() {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Delete Template</DialogTitle>
+        <DialogTitle>{translations.deleteTemplate as string}</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete this template? This action cannot be
-            undone.
+            {translations.confirmDeleteTemplate as string}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            {translations.cancel as string}
+          </Button>
           <Button onClick={confirmDeleteTemplate} color="error">
-            Delete
+            {translations.delete as string}
           </Button>
         </DialogActions>
       </Dialog>

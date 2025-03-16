@@ -1,5 +1,3 @@
-"use client";
-
 import type React from "react";
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -58,7 +56,6 @@ import {
   Home as HomeIcon,
   Schedule as ScheduleIcon,
   Loop as LoopIcon,
-  Notifications as NotificationsIcon,
   Edit as EditIcon,
 } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -89,12 +86,13 @@ import {
   subscribeToTaskUpdates,
 } from "../services/auto-action-service";
 import { SearchSortType, SearchNoteType } from "../services/search-service";
+import { useLanguage } from "../contexts/language-context";
 
 // Tab panel component
 function TabPanel(props: {
   children?: React.ReactNode;
-  index: number;
   value: number;
+  index: number;
 }) {
   const { children, value, index, ...other } = props;
 
@@ -113,6 +111,7 @@ function TabPanel(props: {
 
 export default function AutoActionPage() {
   const [tabValue, setTabValue] = useState(0);
+  const { translations } = useLanguage();
   const [tasks, setTasks] = useState<CommentTask[]>([]);
   const [selectedTask, setSelectedTask] = useState<CommentTask | null>(null);
   const [taskLogs, setTaskLogs] = useState<CommentLog[]>([]);
@@ -126,8 +125,6 @@ export default function AutoActionPage() {
   const [templates, setTemplates] = useState<CommentTemplate[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sseConnected, setSseConnected] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [taskNotification, setTaskNotification] = useState<{
     show: boolean;
     message: string;
@@ -187,8 +184,6 @@ export default function AutoActionPage() {
   const handleTaskUpdate = useCallback(
     (updatedTasks: CommentTask[]) => {
       setTasks(updatedTasks);
-      setLastUpdate(new Date());
-      setSseConnected(true);
 
       // Update selected task if it exists in the updated tasks
       if (selectedTask) {
@@ -200,7 +195,10 @@ export default function AutoActionPage() {
           if (updatedSelectedTask.status !== selectedTask.status) {
             setTaskNotification({
               show: true,
-              message: `任务 "${updatedSelectedTask.id}" 状态已更新为 ${updatedSelectedTask.status}`,
+              message: (translations.taskStatusUpdated as Function)(
+                updatedSelectedTask.id,
+                updatedSelectedTask.status
+              ),
               taskId: updatedSelectedTask.id,
             });
 
@@ -242,7 +240,7 @@ export default function AutoActionPage() {
       setTasks(response.data);
     } catch (err) {
       console.error("Error fetching tasks:", err);
-      setError("Failed to load tasks. Please try again.");
+      setError(translations.failedToLoadTasks as string);
     } finally {
       setLoading(false);
     }
@@ -264,7 +262,7 @@ export default function AutoActionPage() {
         setTaskLogs(response.data);
       } catch (err) {
         console.error(`Error fetching logs for task ${selectedTask.id}:`, err);
-        showToast("Failed to load task logs", "error");
+        showToast(translations.failedToLoadTaskLogs as string, "error");
       } finally {
         setLogsLoading(false);
       }
@@ -314,10 +312,10 @@ export default function AutoActionPage() {
       }
 
       setTaskLogs(response.data);
-      showToast("Task logs refreshed", "success");
+      showToast(translations.taskLogsRefreshed as string, "success");
     } catch (err) {
       console.error(`Error refreshing logs for task ${selectedTask.id}:`, err);
-      showToast("Failed to refresh task logs", "error");
+      showToast(translations.failedToRefreshTaskLogs as string, "error");
     } finally {
       setLogsLoading(false);
     }
@@ -329,12 +327,12 @@ export default function AutoActionPage() {
       newTask.type === TaskType.SEARCH &&
       (!newTask.keywords || newTask.keywords.length === 0)
     ) {
-      showToast("请输入至少一个搜索关键词", "error");
+      showToast(translations.enterAtLeastOneKeyword as string, "error");
       return;
     }
 
     if (customComment === "" && selectedTemplateIds.length === 0) {
-      showToast("请添加至少一条评论或选择一个模板", "error");
+      showToast(translations.addAtLeastOneCommentOrTemplate as string, "error");
       return;
     }
 
@@ -373,7 +371,7 @@ export default function AutoActionPage() {
         throw new Error(response.error || response.message);
       }
 
-      showToast("Task created successfully", "success");
+      showToast(translations.taskCreatedSuccessfully as string, "success");
       setCreateDialogOpen(false);
 
       // Reset form
@@ -398,7 +396,7 @@ export default function AutoActionPage() {
       fetchTasks();
     } catch (err) {
       console.error("Error creating task:", err);
-      showToast("Failed to create task", "error");
+      showToast(translations.failedToCreateTask as string, "error");
     }
   };
 
@@ -460,12 +458,12 @@ export default function AutoActionPage() {
       editTask.type === TaskType.SEARCH &&
       (!editTask.keywords || editTask.keywords.length === 0)
     ) {
-      showToast("请输入至少一个搜索关键词", "error");
+      showToast(translations.enterAtLeastOneKeyword as string, "error");
       return;
     }
 
     if (editCustomComment === "" && editSelectedTemplateIds.length === 0) {
-      showToast("请添加至少一条评论或选择一个模板", "error");
+      showToast(translations.addAtLeastOneCommentOrTemplate as string, "error");
       return;
     }
 
@@ -504,7 +502,7 @@ export default function AutoActionPage() {
         throw new Error(response.error || response.message);
       }
 
-      showToast("任务更新成功", "success");
+      showToast(translations.taskUpdatedSuccessfully as string, "success");
       setEditDialogOpen(false);
       await fetchTasks();
       // 如果当前选中的任务是被编辑的任务，更新选中的任务
@@ -517,7 +515,7 @@ export default function AutoActionPage() {
       }
     } catch (err) {
       console.error(`Error updating task ${taskToUpdate.id}:`, err);
-      showToast("更新任务失败", "error");
+      showToast(translations.failedToUpdateTask as string, "error");
     }
   };
 
@@ -544,10 +542,10 @@ export default function AutoActionPage() {
 
       fetchTasks();
 
-      showToast("Task deleted successfully", "success");
+      showToast(translations.taskDeletedSuccessfully as string, "success");
     } catch (err) {
       console.error(`Error deleting task ${taskToDelete}:`, err);
-      showToast("Failed to delete task", "error");
+      showToast(translations.failedToDeleteTask as string, "error");
     } finally {
       setDeleteDialogOpen(false);
       setTaskToDelete(null);
@@ -575,11 +573,12 @@ export default function AutoActionPage() {
       }
 
       const statusMessages = {
-        [TaskStatus.RUNNING]: "Task started successfully",
-        [TaskStatus.PAUSED]: "Task paused successfully",
-        [TaskStatus.ERROR]: "Task encountered an error",
-        [TaskStatus.COMPLETED]: "Task completed successfully",
-        [TaskStatus.IDLE]: "Task reset to idle state",
+        [TaskStatus.RUNNING]: translations.taskStartedSuccessfully as string,
+        [TaskStatus.PAUSED]: translations.taskEncounteredAnError as string,
+        [TaskStatus.ERROR]: translations.taskStoppedSuccessfully as string,
+        [TaskStatus.COMPLETED]:
+          translations.taskCompletedSuccessfully as string,
+        [TaskStatus.IDLE]: translations.taskResetToIdleState as string,
       };
 
       showToast(
@@ -588,13 +587,13 @@ export default function AutoActionPage() {
       );
     } catch (err) {
       console.error(`Error updating task ${taskId} status:`, err);
-      showToast("Failed to update task status", "error");
+      showToast(translations.failedToUpdateTaskStatus as string, "error");
     }
   };
 
   const handleExportLogs = () => {
     if (!selectedTask || taskLogs.length === 0) {
-      showToast("No logs to export", "warning");
+      showToast(translations.noLogsToExport as string, "warning");
       return;
     }
 
@@ -604,7 +603,7 @@ export default function AutoActionPage() {
       "yyyy-MM-dd-HH-mm"
     )}.csv`;
     downloadCsv(csvContent, filename);
-    showToast("Logs exported successfully", "success");
+    showToast(translations.logsExportedSuccessfully as string, "success");
   };
 
   const handleChangePage = (_: unknown, newPage: number) => {
@@ -711,7 +710,7 @@ export default function AutoActionPage() {
     return (
       <Box sx={{ display: "flex" }}>
         {/* 编辑按钮 */}
-        <Tooltip title="编辑">
+        <Tooltip title={translations.edit as string}>
           <IconButton
             size="small"
             onClick={(e) => {
@@ -727,7 +726,7 @@ export default function AutoActionPage() {
         {/* 状态控制按钮 */}
         {task.status === TaskStatus.RUNNING && (
           <>
-            <Tooltip title="暂停">
+            <Tooltip title={translations.pause as string}>
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -739,7 +738,7 @@ export default function AutoActionPage() {
                 <PauseIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="停止">
+            <Tooltip title={translations.stop as string}>
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -756,7 +755,7 @@ export default function AutoActionPage() {
 
         {task.status === TaskStatus.PAUSED && (
           <>
-            <Tooltip title="继续">
+            <Tooltip title={translations.continue as string}>
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -768,7 +767,7 @@ export default function AutoActionPage() {
                 <PlayIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="停止">
+            <Tooltip title={translations.stop as string}>
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -786,7 +785,7 @@ export default function AutoActionPage() {
         {(task.status === TaskStatus.ERROR ||
           task.status === TaskStatus.COMPLETED ||
           task.status === TaskStatus.IDLE) && (
-          <Tooltip title="开始">
+          <Tooltip title={translations.start as string}>
             <IconButton
               size="small"
               onClick={(e) => {
@@ -801,7 +800,7 @@ export default function AutoActionPage() {
         )}
 
         {/* 删除按钮 */}
-        <Tooltip title="删除">
+        <Tooltip title={translations.delete as string}>
           <IconButton
             size="small"
             onClick={(e) => {
@@ -819,7 +818,8 @@ export default function AutoActionPage() {
 
   // Helper function to format keywords for display
   const formatKeywords = (keywords?: string[]) => {
-    if (!keywords || keywords.length === 0) return "无关键词";
+    if (!keywords || keywords.length === 0)
+      return translations.noKeywords as string;
     return keywords.join(", ");
   };
 
@@ -835,25 +835,19 @@ export default function AutoActionPage() {
               mb: 2,
             }}
           >
-            <Typography variant="h5">自动评论任务</Typography>
+            <Typography variant="h5">
+              {translations.autoCommentTasks as string}
+            </Typography>
             <Box>
               {playwrightStatus !== "running" && (
                 <Alert
                   severity="warning"
                   sx={{ mr: 2, display: "inline-flex" }}
                 >
-                  Playwright 未运行，无法执行自动任务
+                  {
+                    translations.playwrightNotRunningCannotExecuteAutoTask as string
+                  }
                 </Alert>
-              )}
-              {sseConnected && (
-                <Chip
-                  color="success"
-                  icon={<NotificationsIcon />}
-                  label={`实时更新已连接 ${
-                    lastUpdate ? `(${format(lastUpdate, "HH:mm:ss")})` : ""
-                  }`}
-                  sx={{ mr: 2 }}
-                />
               )}
               <Button
                 variant="contained"
@@ -862,7 +856,7 @@ export default function AutoActionPage() {
                 onClick={() => setCreateDialogOpen(true)}
                 disabled={playwrightStatus !== "running"}
               >
-                创建新任务
+                {translations.createTask as string}
               </Button>
             </Box>
           </Box>
@@ -882,8 +876,8 @@ export default function AutoActionPage() {
             onChange={handleTabChange}
             sx={{ borderBottom: 1, borderColor: "divider" }}
           >
-            <Tab label="任务列表" />
-            {selectedTask && <Tab label="任务详情" />}
+            <Tab label={translations.taskList as string} />
+            {selectedTask && <Tab label={translations.taskDetails as string} />}
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -894,7 +888,7 @@ export default function AutoActionPage() {
                 onClick={handleRefreshTasks}
                 disabled={loading}
               >
-                刷新列表
+                {translations.refreshList as string}
               </Button>
             </Box>
 
@@ -908,9 +902,11 @@ export default function AutoActionPage() {
               </Alert>
             ) : tasks.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 5 }}>
-                <Typography variant="h6">暂无任务</Typography>
+                <Typography variant="h6">
+                  {translations.noTasks as string}
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  点击"创建新任务"按钮开始
+                  {translations.clickCreateNewTaskButton as string}
                 </Typography>
               </Box>
             ) : (
@@ -918,15 +914,25 @@ export default function AutoActionPage() {
                 <Table sx={{ minWidth: 650 }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>任务类型</TableCell>
-                      <TableCell>关键词/来源</TableCell>
-                      <TableCell>状态</TableCell>
-                      <TableCell>进度</TableCell>
-                      <TableCell>触发方式</TableCell>
-                      <TableCell>开机执行</TableCell>
-                      <TableCell>更新重调度</TableCell>
-                      <TableCell>创建时间</TableCell>
-                      <TableCell>操作</TableCell>
+                      <TableCell>{translations.taskType as string}</TableCell>
+                      <TableCell>
+                        {translations.keywordsOrSource as string}
+                      </TableCell>
+                      <TableCell>{translations.status as string}</TableCell>
+                      <TableCell>{translations.progress as string}</TableCell>
+                      <TableCell>
+                        {translations.triggerType as string}
+                      </TableCell>
+                      <TableCell>
+                        {translations.executeOnStartup as string}
+                      </TableCell>
+                      <TableCell>
+                        {translations.rescheduleAfterUpdate as string}
+                      </TableCell>
+                      <TableCell>
+                        {translations.creationTime as string}
+                      </TableCell>
+                      <TableCell>{translations.actions as string}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -947,8 +953,8 @@ export default function AutoActionPage() {
                             {getTaskTypeIcon(task.type)}
                             <Typography sx={{ ml: 1 }}>
                               {task.type === TaskType.SEARCH
-                                ? "搜索评论"
-                                : "首页评论"}
+                                ? (translations.searchComment as string)
+                                : (translations.homepageComment as string)}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -960,7 +966,7 @@ export default function AutoActionPage() {
                               </Typography>
                             </Tooltip>
                           ) : (
-                            "首页推荐"
+                            (translations.homepageRecommendation as string)
                           )}
                         </TableCell>
                         <TableCell>
@@ -987,9 +993,9 @@ export default function AutoActionPage() {
                             {getTriggerTypeIcon(task.triggerType)}
                             <Typography variant="body2" sx={{ ml: 1 }}>
                               {task.triggerType === TriggerType.IMMEDIATE
-                                ? "立即执行"
+                                ? (translations.executeImmediately as string)
                                 : task.triggerType === TriggerType.SCHEDULED
-                                ? `计划于 ${
+                                ? `${translations.scheduledAt} ${
                                     task.scheduleTime
                                       ? format(
                                           new Date(task.scheduleTime),
@@ -997,22 +1003,38 @@ export default function AutoActionPage() {
                                         )
                                       : "N/A"
                                   }`
-                                : `每 ${task.intervalMinutes} 分钟`}
+                                : `${translations.every} ${task.intervalMinutes} ${translations.minutes}`}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           {task.executeOnStartup ? (
-                            <Chip label="是" color="success" size="small" />
+                            <Chip
+                              label={translations.yes as string}
+                              color="success"
+                              size="small"
+                            />
                           ) : (
-                            <Chip label="否" color="default" size="small" />
+                            <Chip
+                              label={translations.no as string}
+                              color="default"
+                              size="small"
+                            />
                           )}
                         </TableCell>
                         <TableCell>
                           {task.rescheduleAfterUpdate !== false ? (
-                            <Chip label="是" color="success" size="small" />
+                            <Chip
+                              label={translations.yes as string}
+                              color="success"
+                              size="small"
+                            />
                           ) : (
-                            <Chip label="否" color="default" size="small" />
+                            <Chip
+                              label={translations.no as string}
+                              color="default"
+                              size="small"
+                            />
                           )}
                         </TableCell>
                         <TableCell>
@@ -1040,7 +1062,9 @@ export default function AutoActionPage() {
                         mb: 2,
                       }}
                     >
-                      <Typography variant="h6">任务详情</Typography>
+                      <Typography variant="h6">
+                        {translations.taskDetails as string}
+                      </Typography>
                       <Box>{renderTaskControls(selectedTask)}</Box>
                     </Box>
 
@@ -1048,21 +1072,27 @@ export default function AutoActionPage() {
 
                     <Grid container spacing={2}>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">任务ID</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.taskId as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.id}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">任务类型</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.taskType as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.type === TaskType.SEARCH
-                            ? "搜索评论"
-                            : "首页评论"}
+                            ? (translations.searchComment as string)
+                            : (translations.homepageComment as string)}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">状态</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.status as string}
+                        </Typography>
                         <Box sx={{ display: "flex", alignItems: "center" }}>
                           <Chip
                             label={selectedTask.status}
@@ -1081,7 +1111,9 @@ export default function AutoActionPage() {
                         </Box>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">进度</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.progress as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.completedComments} /{" "}
                           {selectedTask.maxComments}
@@ -1091,7 +1123,7 @@ export default function AutoActionPage() {
                         <>
                           <Grid item xs={12}>
                             <Typography variant="subtitle2">
-                              搜索关键词
+                              {translations.searchKeywords as string}
                             </Typography>
                             <Box sx={{ mt: 1 }}>
                               {selectedTask.keywords &&
@@ -1109,33 +1141,35 @@ export default function AutoActionPage() {
                                   variant="body2"
                                   color="text.secondary"
                                 >
-                                  无关键词
+                                  {translations.noKeywords as string}
                                 </Typography>
                               )}
                             </Box>
                           </Grid>
                           <Grid item xs={6}>
                             <Typography variant="subtitle2">
-                              排序方式
+                              {translations.sortType as string}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                               {selectedTask.sortType === SearchSortType.GENERAL
-                                ? "综合排序"
+                                ? (translations.generalSort as string)
                                 : selectedTask.sortType ===
                                   SearchSortType.LATEST
-                                ? "最新排序"
-                                : "最热排序"}
+                                ? (translations.latestSort as string)
+                                : (translations.hotSort as string)}
                             </Typography>
                           </Grid>
                         </>
                       )}
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">触发方式</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.triggerType as string}{" "}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.triggerType === TriggerType.IMMEDIATE
-                            ? "立即执行"
+                            ? (translations.executeImmediately as string)
                             : selectedTask.triggerType === TriggerType.SCHEDULED
-                            ? `计划于 ${
+                            ? `${translations.scheduledAt as string} ${
                                 selectedTask.scheduleTime
                                   ? format(
                                       new Date(selectedTask.scheduleTime),
@@ -1143,33 +1177,43 @@ export default function AutoActionPage() {
                                     )
                                   : "N/A"
                               }`
-                            : `每 ${selectedTask.intervalMinutes} 分钟`}
+                            : `${translations.every as string} ${
+                                selectedTask.intervalMinutes
+                              } ${translations.minutes as string}`}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">延迟设置</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.delaySettings as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.minDelay} - {selectedTask.maxDelay} 秒
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">开机执行</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.executeOnStartup as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedTask.executeOnStartup ? "是" : "否"}
+                          {selectedTask.executeOnStartup
+                            ? (translations.yes as string)
+                            : (translations.no as string)}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
                         <Typography variant="subtitle2">
-                          更新后重调度
+                          {translations.rescheduleAfterUpdate as string}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {selectedTask.rescheduleAfterUpdate !== false
-                            ? "是"
-                            : "否"}
+                            ? (translations.yes as string)
+                            : (translations.no as string)}
                         </Typography>
                       </Grid>
                       <Grid item xs={12}>
-                        <Typography variant="subtitle2">评论内容</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.commentContent as string}
+                        </Typography>
                         <List
                           dense
                           sx={{
@@ -1186,19 +1230,30 @@ export default function AutoActionPage() {
                         </List>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">随机评论</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.useRandomComment as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedTask.useRandomComment ? "是" : "否"}
+                          {selectedTask.useRandomComment
+                            ? (translations.yes as string)
+                            : (translations.no as string)}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">随机表情</Typography>
+                        <Typography variant="subtitle2">
+                          {" "}
+                          {translations.useRandomEmoji as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedTask.useRandomEmoji ? "是" : "否"}
+                          {selectedTask.useRandomEmoji
+                            ? (translations.yes as string)
+                            : (translations.no as string)}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">创建时间</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.creationTime as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {format(
                             new Date(selectedTask.createdAt),
@@ -1207,7 +1262,9 @@ export default function AutoActionPage() {
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
-                        <Typography variant="subtitle2">更新时间</Typography>
+                        <Typography variant="subtitle2">
+                          {translations.updateTime as string}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {format(
                             new Date(selectedTask.updatedAt),
@@ -1229,7 +1286,9 @@ export default function AutoActionPage() {
                         mb: 2,
                       }}
                     >
-                      <Typography variant="h6">评论日志</Typography>
+                      <Typography variant="h6">
+                        {translations.commentLogs as string}
+                      </Typography>
                       <Box>
                         <Button
                           variant="outlined"
@@ -1239,7 +1298,7 @@ export default function AutoActionPage() {
                           disabled={taskLogs.length === 0}
                           sx={{ mr: 1 }}
                         >
-                          导出CSV
+                          {translations.exportCSV as string}
                         </Button>
                         <Button
                           variant="outlined"
@@ -1248,7 +1307,7 @@ export default function AutoActionPage() {
                           onClick={handleRefreshTaskLogs}
                           disabled={logsLoading}
                         >
-                          刷新
+                          {translations.refresh as string}
                         </Button>
                       </Box>
                     </Box>
@@ -1264,7 +1323,7 @@ export default function AutoActionPage() {
                     ) : taskLogs.length === 0 ? (
                       <Box sx={{ textAlign: "center", py: 3 }}>
                         <Typography variant="body2" color="text.secondary">
-                          暂无评论日志
+                          {translations.noCommentLogs as string}
                         </Typography>
                       </Box>
                     ) : (
@@ -1273,10 +1332,19 @@ export default function AutoActionPage() {
                           <Table stickyHeader size="small">
                             <TableHead>
                               <TableRow>
-                                <TableCell>时间</TableCell>
-                                <TableCell>笔记标题</TableCell>
-                                <TableCell>评论内容</TableCell>
-                                <TableCell>状态</TableCell>
+                                <TableCell>
+                                  {translations.time as string}
+                                </TableCell>
+                                <TableCell>
+                                  {translations.noteTitle as string}
+                                </TableCell>
+                                <TableCell>
+                                  {translations.commentContent as string}
+                                </TableCell>
+                                <TableCell>
+                                  {" "}
+                                  {translations.status as string}
+                                </TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -1317,7 +1385,11 @@ export default function AutoActionPage() {
                                     </TableCell>
                                     <TableCell>
                                       <Chip
-                                        label={log.success ? "成功" : "失败"}
+                                        label={
+                                          log.success
+                                            ? (translations.success as string)
+                                            : (translations.failure as string)
+                                        }
                                         color={
                                           log.success ? "success" : "error"
                                         }
@@ -1354,7 +1426,9 @@ export default function AutoActionPage() {
               </Grid>
             ) : (
               <Box sx={{ textAlign: "center", py: 5 }}>
-                <Typography variant="h6">请选择一个任务查看详情</Typography>
+                <Typography variant="h6">
+                  {translations.pleaseSelectTaskToViewDetails as string}
+                </Typography>
               </Box>
             )}
           </TabPanel>
@@ -1368,12 +1442,14 @@ export default function AutoActionPage() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>创建自动评论任务</DialogTitle>
+        <DialogTitle> {translations.createNewTask as string}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <FormControl component="fieldset">
-                <FormLabel component="legend">任务类型</FormLabel>
+                <FormLabel component="legend">
+                  {translations.taskType as string}
+                </FormLabel>
                 <RadioGroup
                   row
                   value={newTask.type}
@@ -1384,12 +1460,12 @@ export default function AutoActionPage() {
                   <FormControlLabel
                     value={TaskType.SEARCH}
                     control={<Radio />}
-                    label="搜索评论"
+                    label={translations.searchComment as string}
                   />
                   <FormControlLabel
                     value={TaskType.HOMEPAGE}
                     control={<Radio />}
-                    label="首页评论"
+                    label={translations.homepageComment as string}
                   />
                 </RadioGroup>
               </FormControl>
@@ -1418,9 +1494,13 @@ export default function AutoActionPage() {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="搜索关键词"
-                        placeholder="输入关键词后按回车添加多个"
-                        helperText="可添加多个关键词，每个关键词将创建单独的搜索任务"
+                        label={translations.searchKeywords as string}
+                        placeholder={
+                          translations.enterKeywordsAndPressEnterToAddMultiple as string
+                        }
+                        helperText={
+                          translations.canAddMultipleKeywordsEachCreatesSeparateTask as string
+                        }
                         fullWidth
                         required
                       />
@@ -1429,10 +1509,10 @@ export default function AutoActionPage() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>排序方式</InputLabel>
+                    <InputLabel>{translations.sortType as string}</InputLabel>
                     <Select
                       value={newTask.sortType}
-                      label="排序方式"
+                      label={translations.sortType as string}
                       onChange={(e) =>
                         setNewTask({
                           ...newTask,
@@ -1441,21 +1521,23 @@ export default function AutoActionPage() {
                       }
                     >
                       <MenuItem value={SearchSortType.GENERAL}>
-                        综合排序
+                        {translations.generalSort as string}
                       </MenuItem>
                       <MenuItem value={SearchSortType.LATEST}>
-                        最新排序
+                        {translations.latestSort as string}
                       </MenuItem>
-                      <MenuItem value={SearchSortType.HOT}>最热排序</MenuItem>
+                      <MenuItem value={SearchSortType.HOT}>
+                        {translations.hotSort as string}
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>笔记类型</InputLabel>
+                    <InputLabel> {translations.noteType as string}</InputLabel>
                     <Select
                       value={newTask.noteType}
-                      label="笔记类型"
+                      label={translations.noteType as string}
                       onChange={(e) =>
                         setNewTask({
                           ...newTask,
@@ -1463,9 +1545,15 @@ export default function AutoActionPage() {
                         })
                       }
                     >
-                      <MenuItem value={SearchNoteType.ALL}>所有笔记</MenuItem>
-                      <MenuItem value={SearchNoteType.VIDEO}>视频笔记</MenuItem>
-                      <MenuItem value={SearchNoteType.IMAGE}>图文笔记</MenuItem>
+                      <MenuItem value={SearchNoteType.ALL}>
+                        {translations.allNotes as string}
+                      </MenuItem>
+                      <MenuItem value={SearchNoteType.VIDEO}>
+                        {translations.videoNotes as string}
+                      </MenuItem>
+                      <MenuItem value={SearchNoteType.IMAGE}>
+                        {translations.imageNotes as string}
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -1473,7 +1561,9 @@ export default function AutoActionPage() {
             )}
 
             <Grid item xs={12}>
-              <Divider textAlign="left">评论设置</Divider>
+              <Divider textAlign="left">
+                {translations.commentSettings as string}
+              </Divider>
             </Grid>
 
             <Grid item xs={12}>
@@ -1481,17 +1571,19 @@ export default function AutoActionPage() {
                 fullWidth
                 multiline
                 rows={3}
-                label="自定义评论"
-                placeholder="输入自定义评论内容..."
+                label={translations.customComment as string}
+                placeholder={translations.enterCustomCommentContent as string}
                 value={customComment}
                 onChange={(e) => setCustomComment(e.target.value)}
-                helperText="可以添加自定义评论，也可以选择下方的评论模板"
+                helperText={
+                  translations.canAddCustomCommentOrSelectTemplate as string
+                }
               />
             </Grid>
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" gutterBottom>
-                评论模板
+                {translations.commentTemplates as string}
               </Typography>
               <Paper
                 variant="outlined"
@@ -1499,7 +1591,9 @@ export default function AutoActionPage() {
               >
                 {templates.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    没有可用的模板。请在模板页面创建模板。
+                    {
+                      translations.noTemplatesAvailableCreateInTemplatePage as string
+                    }
                   </Typography>
                 ) : (
                   <Grid container spacing={1}>
@@ -1534,47 +1628,18 @@ export default function AutoActionPage() {
                 )}
               </Paper>
             </Grid>
-            {/* 
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={newTask.useRandomComment}
-                    onChange={(e) =>
-                      setNewTask({
-                        ...newTask,
-                        useRandomComment: e.target.checked,
-                      })
-                    }
-                  />
-                }
-                label="随机选择评论"
-              />
-            </Grid>
 
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={newTask.useRandomEmoji}
-                    onChange={(e) =>
-                      setNewTask({
-                        ...newTask,
-                        useRandomEmoji: e.target.checked,
-                      })
-                    }
-                  />
-                }
-                label="随机插入表情"
-              />
-            </Grid> */}
             <Grid item xs={12}>
-              <Divider textAlign="left">执行设置</Divider>
+              <Divider textAlign="left">
+                {translations.executionSettings as string}
+              </Divider>
             </Grid>
 
             <Grid item xs={12}>
               <FormControl component="fieldset">
-                <FormLabel component="legend">触发方式</FormLabel>
+                <FormLabel component="legend">
+                  {translations.triggerType as string}
+                </FormLabel>
                 <RadioGroup
                   row
                   value={newTask.triggerType}
@@ -1588,17 +1653,17 @@ export default function AutoActionPage() {
                   <FormControlLabel
                     value={TriggerType.IMMEDIATE}
                     control={<Radio />}
-                    label="立即执行"
+                    label={translations.executeImmediately as string}
                   />
                   <FormControlLabel
                     value={TriggerType.SCHEDULED}
                     control={<Radio />}
-                    label="计划执行"
+                    label={translations.scheduledExecution as string}
                   />
                   <FormControlLabel
                     value={TriggerType.INTERVAL}
                     control={<Radio />}
-                    label="定时执行"
+                    label={translations.intervalExecution as string}
                   />
                 </RadioGroup>
               </FormControl>
@@ -1608,7 +1673,7 @@ export default function AutoActionPage() {
               <Grid item xs={12} md={6}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
-                    label="计划执行时间"
+                    label={translations.scheduledExecutionTime as string}
                     value={scheduleDate}
                     onChange={(newValue) => setScheduleDate(newValue)}
                     slotProps={{ textField: { fullWidth: true } }}
@@ -1622,7 +1687,7 @@ export default function AutoActionPage() {
                 <TextField
                   fullWidth
                   type="number"
-                  label="执行间隔（分钟）"
+                  label={translations.executionIntervalMinutes as string}
                   value={newTask.intervalMinutes || 60}
                   onChange={(e) =>
                     setNewTask({
@@ -1637,7 +1702,11 @@ export default function AutoActionPage() {
 
             <Grid item xs={12} md={6}>
               <Typography gutterBottom>
-                最小延迟: {newTask.minDelay} 秒
+                {
+                  (translations.minimumDelay as Function)(
+                    newTask.minDelay
+                  ) as string
+                }
               </Typography>
               <Slider
                 value={newTask.minDelay}
@@ -1650,7 +1719,11 @@ export default function AutoActionPage() {
 
             <Grid item xs={12} md={6}>
               <Typography gutterBottom>
-                最大延迟: {newTask.maxDelay} 秒
+                {
+                  (translations.maximumDelay as Function)(
+                    newTask.minDelay
+                  ) as string
+                }
               </Typography>
               <Slider
                 value={newTask.maxDelay}
@@ -1665,7 +1738,7 @@ export default function AutoActionPage() {
               <TextField
                 fullWidth
                 type="number"
-                label="最大评论数"
+                label={translations.maximumComments as string}
                 value={newTask.maxComments}
                 onChange={(e) =>
                   setNewTask({
@@ -1674,7 +1747,9 @@ export default function AutoActionPage() {
                   })
                 }
                 InputProps={{ inputProps: { min: 1 } }}
-                helperText="任务将在达到此评论数后自动停止"
+                helperText={
+                  translations.taskWillStopAfterReachingCommentLimit as string
+                }
               />
             </Grid>
 
@@ -1691,7 +1766,7 @@ export default function AutoActionPage() {
                     }
                   />
                 }
-                label="服务开机时立即执行此任务"
+                label={translations.executeTaskOnServiceStartup as string}
               />
               <Typography
                 variant="caption"
@@ -1699,7 +1774,7 @@ export default function AutoActionPage() {
                 display="block"
                 sx={{ ml: 2 }}
               >
-                启用此选项后，当服务重启时会自动调度执行此任务
+                {translations.autoScheduleTaskOnServiceRestart as string}
               </Typography>
             </Grid>
           </Grid>
@@ -1716,7 +1791,7 @@ export default function AutoActionPage() {
               (customComment === "" && selectedTemplateIds.length === 0)
             }
           >
-            创建任务
+            {translations.createTask as string}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1728,12 +1803,14 @@ export default function AutoActionPage() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>编辑任务</DialogTitle>
+        <DialogTitle>{translations.editTask as string}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <FormControl component="fieldset">
-                <FormLabel component="legend">任务类型</FormLabel>
+                <FormLabel component="legend">
+                  {translations.taskType as string}
+                </FormLabel>
                 <RadioGroup
                   row
                   value={editTask.type}
@@ -1747,12 +1824,12 @@ export default function AutoActionPage() {
                   <FormControlLabel
                     value={TaskType.SEARCH}
                     control={<Radio />}
-                    label="搜索评论"
+                    label={translations.searchComment as string}
                   />
                   <FormControlLabel
                     value={TaskType.HOMEPAGE}
                     control={<Radio />}
-                    label="首页评论"
+                    label={translations.homepageComment as string}
                   />
                 </RadioGroup>
               </FormControl>
@@ -1781,9 +1858,13 @@ export default function AutoActionPage() {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="搜索关键词"
-                        placeholder="输入关键词后按回车添加多个"
-                        helperText="可添加多个关键词，每个关键词将创建单独的搜索任务"
+                        label={translations.searchKeywords as string}
+                        placeholder={
+                          translations.enterKeywordsAndPressEnterToAddMultiple as string
+                        }
+                        helperText={
+                          translations.canAddMultipleKeywordsEachCreatesSeparateTask as string
+                        }
                         fullWidth
                         required
                       />
@@ -1792,10 +1873,10 @@ export default function AutoActionPage() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>排序方式</InputLabel>
+                    <InputLabel>{translations.sortType as string}</InputLabel>
                     <Select
                       value={editTask.sortType}
-                      label="排序方式"
+                      label={translations.sortType as string}
                       onChange={(e) =>
                         setEditTask({
                           ...editTask,
@@ -1804,21 +1885,23 @@ export default function AutoActionPage() {
                       }
                     >
                       <MenuItem value={SearchSortType.GENERAL}>
-                        综合排序
+                        {translations.generalSort as string}
                       </MenuItem>
                       <MenuItem value={SearchSortType.LATEST}>
-                        最新排序
+                        {translations.latestSort as string}
                       </MenuItem>
-                      <MenuItem value={SearchSortType.HOT}>最热排序</MenuItem>
+                      <MenuItem value={SearchSortType.HOT}>
+                        {translations.hotSort as string}
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>笔记类型</InputLabel>
+                    <InputLabel>{translations.noteType as string}</InputLabel>
                     <Select
                       value={editTask.noteType}
-                      label="笔记类型"
+                      label={translations.noteType as string}
                       onChange={(e) =>
                         setEditTask({
                           ...editTask,
@@ -1826,9 +1909,15 @@ export default function AutoActionPage() {
                         })
                       }
                     >
-                      <MenuItem value={SearchNoteType.ALL}>所有笔记</MenuItem>
-                      <MenuItem value={SearchNoteType.VIDEO}>视频笔记</MenuItem>
-                      <MenuItem value={SearchNoteType.IMAGE}>图文笔记</MenuItem>
+                      <MenuItem value={SearchNoteType.ALL}>
+                        {translations.allNotes as string}
+                      </MenuItem>
+                      <MenuItem value={SearchNoteType.VIDEO}>
+                        {translations.videoNotes as string}
+                      </MenuItem>
+                      <MenuItem value={SearchNoteType.IMAGE}>
+                        {translations.imageNotes as string}
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -1836,7 +1925,9 @@ export default function AutoActionPage() {
             )}
 
             <Grid item xs={12}>
-              <Divider textAlign="left">评论设置</Divider>
+              <Divider textAlign="left">
+                {translations.commentSettings as string}
+              </Divider>
             </Grid>
 
             <Grid item xs={12}>
@@ -1844,17 +1935,19 @@ export default function AutoActionPage() {
                 fullWidth
                 multiline
                 rows={3}
-                label="自定义评论"
-                placeholder="输入自定义评论内容..."
+                label={translations.customComment as string}
+                placeholder={translations.enterCustomCommentContent as string}
                 value={editCustomComment}
                 onChange={(e) => setEditCustomComment(e.target.value)}
-                helperText="可以添加自定义评论，也可以选择下方的评论模板"
+                helperText={
+                  translations.canAddCustomCommentOrSelectTemplate as string
+                }
               />
             </Grid>
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" gutterBottom>
-                评论模板
+                {translations.commentTemplates as string}
               </Typography>
               <Paper
                 variant="outlined"
@@ -1862,7 +1955,9 @@ export default function AutoActionPage() {
               >
                 {templates.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    没有可用的模板。请在模板页面创建模板。
+                    {
+                      translations.noTemplatesAvailableCreateInTemplatePage as string
+                    }
                   </Typography>
                 ) : (
                   <Grid container spacing={1}>
@@ -1901,12 +1996,16 @@ export default function AutoActionPage() {
             </Grid>
 
             <Grid item xs={12}>
-              <Divider textAlign="left">执行设置</Divider>
+              <Divider textAlign="left">
+                {translations.executionSettings as string}
+              </Divider>
             </Grid>
 
             <Grid item xs={12}>
               <FormControl component="fieldset">
-                <FormLabel component="legend">触发方式</FormLabel>
+                <FormLabel component="legend">
+                  {translations.triggerType as string}
+                </FormLabel>
                 <RadioGroup
                   row
                   value={editTask.triggerType}
@@ -1920,17 +2019,17 @@ export default function AutoActionPage() {
                   <FormControlLabel
                     value={TriggerType.IMMEDIATE}
                     control={<Radio />}
-                    label="立即执行"
+                    label={translations.executeImmediately as string}
                   />
                   <FormControlLabel
                     value={TriggerType.SCHEDULED}
                     control={<Radio />}
-                    label="计划执行"
+                    label={translations.scheduledExecution as string}
                   />
                   <FormControlLabel
                     value={TriggerType.INTERVAL}
                     control={<Radio />}
-                    label="定时执行"
+                    label={translations.intervalExecution as string}
                   />
                 </RadioGroup>
               </FormControl>
@@ -1940,7 +2039,7 @@ export default function AutoActionPage() {
               <Grid item xs={12} md={6}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
-                    label="计划执行时间"
+                    label={translations.scheduledExecutionTime as string}
                     value={editScheduleDate}
                     onChange={(newValue) => setEditScheduleDate(newValue)}
                     slotProps={{ textField: { fullWidth: true } }}
@@ -1954,7 +2053,7 @@ export default function AutoActionPage() {
                 <TextField
                   fullWidth
                   type="number"
-                  label="执行间隔（分钟）"
+                  label={translations.executionIntervalMinutes as string}
                   value={editTask.intervalMinutes || 60}
                   onChange={(e) =>
                     setEditTask({
@@ -1969,7 +2068,11 @@ export default function AutoActionPage() {
 
             <Grid item xs={12} md={6}>
               <Typography gutterBottom>
-                最小延迟: {editTask.minDelay} 秒
+                {
+                  (translations.minimumDelay as Function)(
+                    editTask.minDelay
+                  ) as string
+                }
               </Typography>
               <Slider
                 value={editTask.minDelay}
@@ -1982,7 +2085,11 @@ export default function AutoActionPage() {
 
             <Grid item xs={12} md={6}>
               <Typography gutterBottom>
-                最大延迟: {editTask.maxDelay} 秒
+                {
+                  (translations.maximumDelay as Function)(
+                    editTask.maxDelay
+                  ) as string
+                }
               </Typography>
               <Slider
                 value={editTask.maxDelay}
@@ -1997,7 +2104,7 @@ export default function AutoActionPage() {
               <TextField
                 fullWidth
                 type="number"
-                label="最大评论数"
+                label={translations.maximumComments as string}
                 value={editTask.maxComments}
                 onChange={(e) =>
                   setEditTask({
@@ -2006,7 +2113,9 @@ export default function AutoActionPage() {
                   })
                 }
                 InputProps={{ inputProps: { min: 1 } }}
-                helperText="任务将在达到此评论数后自动停止"
+                helperText={
+                  translations.taskWillStopAfterReachingCommentLimit as string
+                }
               />
             </Grid>
 
@@ -2023,7 +2132,7 @@ export default function AutoActionPage() {
                     }
                   />
                 }
-                label="服务开机时立即执行此任务"
+                label={translations.executeTaskOnServiceStartup as string}
               />
               <Typography
                 variant="caption"
@@ -2031,7 +2140,7 @@ export default function AutoActionPage() {
                 display="block"
                 sx={{ ml: 2 }}
               >
-                启用此选项后，当服务重启时会自动调度执行此任务
+                {translations.autoScheduleTaskOnServiceRestart as string}
               </Typography>
             </Grid>
 
@@ -2048,7 +2157,7 @@ export default function AutoActionPage() {
                     }
                   />
                 }
-                label="修改任务参数后立即重新调度"
+                label={translations.rescheduleAfterTaskUpdate as string}
               />
               <Typography
                 variant="caption"
@@ -2056,13 +2165,15 @@ export default function AutoActionPage() {
                 display="block"
                 sx={{ ml: 2 }}
               >
-                启用此选项后，当任务参数被修改时会立即重新调度执行任务
+                {translations.autoRescheduleTaskAfterUpdate as string}
               </Typography>
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setEditDialogOpen(false)}>
+            {translations.cancel as string}
+          </Button>
           <Button
             onClick={handleUpdateTask}
             variant="contained"
@@ -2073,7 +2184,7 @@ export default function AutoActionPage() {
               (editCustomComment === "" && editSelectedTemplateIds.length === 0)
             }
           >
-            更新任务
+            {translations.updateTask as string}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2083,14 +2194,18 @@ export default function AutoActionPage() {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>删除任务</DialogTitle>
+        <DialogTitle>{translations.deleteTask as string}</DialogTitle>
         <DialogContent>
-          <Typography>确定要删除此任务吗？此操作无法撤销。</Typography>
+          <Typography>
+            {translations.confirmDeleteTaskMessage as string}
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            {translations.cancel as string}
+          </Button>
           <Button onClick={confirmDeleteTask} color="error">
-            删除
+            {translations.delete as string}
           </Button>
         </DialogActions>
       </Dialog>
