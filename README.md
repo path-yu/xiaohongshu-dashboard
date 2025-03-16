@@ -36,6 +36,21 @@ To start the server for handling API requests, run:
 npm run server
 ```
 
+## Logging Successful Comments
+
+To log a successful comment, you can use the following code snippet:
+
+```js
+// Log the successful comment
+await addCommentLog(
+  task.id,
+  note.id,
+  note.note_card?.display_title || "Unknown Title",
+  comment,
+  true
+);
+```
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
