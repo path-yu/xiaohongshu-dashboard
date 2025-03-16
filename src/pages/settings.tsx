@@ -16,7 +16,6 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   useMediaQuery,
-  useTheme as useMuiTheme,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -162,10 +161,17 @@ export default function SettingsPage() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={8} lg={6}>
-          <Card>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
+      <Grid sx={{ flexGrow: 1, width: "60vw" }} container spacing={2}>
+        <Grid item xs={12}>
+          <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h5" component="div" gutterBottom>
                 {translations.accountSettings as string}
@@ -232,9 +238,8 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid item xs={12} md={4} lg={6}>
-          <Card>
+        <Grid item xs={12}>
+          <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 {translations.findCredentials as string}
@@ -261,7 +266,8 @@ export default function SettingsPage() {
               </Alert>
             </CardContent>
           </Card>
-
+        </Grid>
+        <Grid item xs={12}>
           {/* Theme Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
@@ -326,7 +332,8 @@ export default function SettingsPage() {
               </Alert>
             </CardContent>
           </Card>
-
+        </Grid>
+        <Grid item xs={12}>
           {/* Language Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
@@ -367,6 +374,6 @@ export default function SettingsPage() {
           </Card>
         </Grid>
       </Grid>
-    </Box>
+    </div>
   );
 }
