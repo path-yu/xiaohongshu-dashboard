@@ -65,8 +65,7 @@ export const initializePlaywright = async (startUp = false) => {
   try {
     playwrightStatus = "loading"; // 设置为加载中
     console.log("正在启动 Playwright");
-    console.log(process.cwd(), "play.ts"),
-      path.join(process.cwd(), "stealth.min.js");
+    path.join(process.cwd(), "stealth.min.js");
     statusEmitter.emit("statusUpdate"); // 触发状态更新
     browser = await chromium.launch({ headless: true });
     context = await browser.newContext();

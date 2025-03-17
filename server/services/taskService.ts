@@ -273,6 +273,7 @@ export const scheduleTasks = async ({
   }
   for (let task of taskList) {
     if (
+      // Skip immediate tasks that are not set to run on startup
       task.triggerType === "immediate" &&
       startUp === true &&
       !task.executeOnStartup

@@ -176,7 +176,7 @@ router.put("/:taskId", async (req, res) => {
       ...req.body, // Merge new fields from request body
       id: existingTask.id, // Prevent ID from being overwritten
       updatedAt: new Date().toISOString(), // Update timestamp
-    };
+    } as ITask;
 
     // Optional: Validate required fields or specific constraints
     if (!updatedTask.type || !updatedTask.maxComments) {
@@ -191,10 +191,14 @@ router.put("/:taskId", async (req, res) => {
     if (req.body.rescheduleAfterUpdate) {
       // Resume immediate task by resetting controller and starting execution
       stopTask(existingTask.id, "clearing paused state"); // Clear any existing controller
-      const controller = new AbortController();
-      immediateTaskControllers.set(existingTask.id, controller);
-      // Trigger scheduleTasks to handle any further cleanup or rescheduling
-      scheduleTasks({ tasks: [updatedTask] }); // Reschedule tasks after adding a new one
+      if (updatedTask.type === "immediate") {
+        const controller = new AbortController();
+        immediateTaskControllers.set(existingTask.id, controller);
+        executeTask(updatedTask);
+      } else {
+        // Trigger scheduleTasks to handle any further cleanup or rescheduling
+        scheduleTasks({ tasks: [updatedTask] }); // Reschedule tasks after adding a new one
+      }
     }
     res.json({
       success: true,

@@ -115,9 +115,9 @@ export default function SearchPage() {
       // Convert API response to Post format
       const apiResults = response.data.items.map((item) => ({
         id: item.id,
-        title: item.note_card.display_title || "无标题",
-        content: item.note_card.display_title || "无内容", // Use title as content since we don't have content in the API
-        author: item.note_card.user?.nickname || "未知用户",
+        title: item.note_card?.display_title || "无标题",
+        content: item.note_card?.display_title || "无内容", // Use title as content since we don't have content in the API
+        author: item.note_card?.user?.nickname || "未知用户",
         likes: Number.parseInt(item.note_card.interact_info?.liked_count) || 0,
         comments: Math.floor(Math.random() * 100), // Random comments count since we don't have it in the API
         imageUrl:
