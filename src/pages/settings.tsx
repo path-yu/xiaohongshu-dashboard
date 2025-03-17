@@ -22,9 +22,10 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import { useToast } from "../contexts/toast-context";
 import { usePlaywright } from "../contexts/playwright-context";
 import { getWebSession, setWebSession } from "../services/settings-service";
-import { useTheme } from "../contexts/theme-context";
-import { useLanguage } from "../contexts/language-context"; // Import language context
+import { ThemeMode, useTheme } from "../contexts/theme-context";
+import { useLanguage } from "../contexts/language-context";
 import Grid from "@mui/material/Grid2";
+
 interface Settings {
   web_session: string;
   autoStartPlaywright: boolean;
@@ -38,18 +39,17 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [fetchingSession, setFetchingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const { showToast } = useToast();
   const { startBrowser, status: playwrightStatus } = usePlaywright();
-  const { mode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode } = useTheme();
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-  const { language, setLanguage, translations } = useLanguage(); // Use language context
+  const { language, setLanguage, translations } = useLanguage();
 
   // Load settings from localStorage and API
   useEffect(() => {
     const loadSettings = async () => {
       setFetchingSession(true);
-
-      // Load web_session from API
       try {
         let response = await getWebSession();
         response = JSON.parse(response.web_session!);
@@ -100,10 +100,8 @@ export default function SettingsPage() {
     _: React.MouseEvent<HTMLElement>,
     newThemeMode: string | null
   ) => {
-    if (newThemeMode !== "system") {
-      setThemeMode(newThemeMode as "light" | "dark");
-    } else {
-    }
+    if (!newThemeMode) return;
+    setThemeMode(newThemeMode as ThemeMode);
   };
 
   const handleLanguageChange = (
@@ -121,7 +119,6 @@ export default function SettingsPage() {
     setError(null);
 
     try {
-      // Save web_session to API
       const response = await setWebSession(settings.web_session);
 
       if (!response.error) {
@@ -130,7 +127,6 @@ export default function SettingsPage() {
           "success"
         );
 
-        // Auto-start Playwright if enabled
         if (settings.autoStartPlaywright && playwrightStatus === "idle") {
           await startBrowser();
         }
@@ -268,7 +264,6 @@ export default function SettingsPage() {
           </Card>
         </Grid>
         <Grid size={{ xs: 12 }}>
-          {/* Theme Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -282,7 +277,7 @@ export default function SettingsPage() {
                   {translations.themeMode as string}
                 </Typography>
                 <ToggleButtonGroup
-                  value={mode}
+                  value={themeMode}
                   exclusive
                   onChange={handleThemeChange}
                   aria-label="theme mode"
@@ -318,9 +313,11 @@ export default function SettingsPage() {
                   sx={{ mt: 1 }}
                 >
                   {translations.currentTheme as string}:{" "}
-                  {mode === "light"
+                  {themeMode === "light"
                     ? (translations.lightMode as string)
-                    : (translations.darkMode as string)}
+                    : themeMode === "dark"
+                    ? (translations.darkMode as string)
+                    : (translations.system as string)}
                 </Typography>
                 <Typography
                   variant="body2"
@@ -341,7 +338,6 @@ export default function SettingsPage() {
           </Card>
         </Grid>
         <Grid size={{ xs: 12 }}>
-          {/* Language Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>

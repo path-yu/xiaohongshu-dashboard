@@ -232,7 +232,7 @@ export default function Navbar() {
           </Button>
         )}
 
-        <Box sx={{ display: "flex" }}>
+        {/* <Box sx={{ display: "flex" }}>
           <IconButton color="inherit">
             <Badge badgeContent={4} color="error">
               <NotificationsIcon />
@@ -241,7 +241,7 @@ export default function Navbar() {
           <IconButton color="inherit">
             <AccountCircle />
           </IconButton>
-        </Box>
+        </Box> */}
       </Toolbar>
     </AppBar>
   );
