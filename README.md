@@ -41,7 +41,7 @@ npm run server
 To log a successful comment, you can use the following code snippet:
 
 ```js
-// Log the successful comment
+Log the successful comment
 await addCommentLog(
   task.id,
   note.id,

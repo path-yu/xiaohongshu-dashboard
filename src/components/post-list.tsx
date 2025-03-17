@@ -1,18 +1,11 @@
-import {
-  Box,
-  CardContent,
-  Typography,
-  Grid,
-  Checkbox,
-  Chip,
-} from "@mui/material";
+import { Box, CardContent, Typography, Checkbox, Chip } from "@mui/material";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CommentIcon from "@mui/icons-material/Comment";
 import { useCommentStore } from "../store/comment-store";
 import type { Post } from "../types";
 import { motion } from "framer-motion";
 import AnimatedCard from "./animated-card";
-
+import Grid from "@mui/material/Grid2";
 interface PostListProps {
   posts: Post[];
 }
@@ -39,7 +32,7 @@ export default function PostList({ posts }: PostListProps) {
     <motion.div variants={container} initial="hidden" animate="show">
       <Grid container spacing={3}>
         {posts.map((post, index) => (
-          <Grid item xs={12} sm={6} md={3} key={post.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={post.id}>
             <AnimatedCard
               delay={index * 0.05}
               sx={{

@@ -16,7 +16,6 @@ import {
   FormControlLabel,
   Checkbox,
   Slider,
-  Grid,
   Divider,
   Paper,
   Table,
@@ -43,6 +42,7 @@ import {
   ListItemText,
   Autocomplete,
 } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import {
   Add as AddIcon,
   PlayArrow as PlayIcon,
@@ -1052,7 +1052,7 @@ export default function AutoActionPage() {
           <TabPanel value={tabValue} index={1}>
             {selectedTask ? (
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 2 }}>
                     <Box
                       sx={{
@@ -1071,7 +1071,7 @@ export default function AutoActionPage() {
                     <Divider sx={{ mb: 2 }} />
 
                     <Grid container spacing={2}>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.taskId as string}
                         </Typography>
@@ -1079,7 +1079,7 @@ export default function AutoActionPage() {
                           {selectedTask.id}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.taskType as string}
                         </Typography>
@@ -1089,7 +1089,7 @@ export default function AutoActionPage() {
                             : (translations.homepageComment as string)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.status as string}
                         </Typography>
@@ -1110,7 +1110,7 @@ export default function AutoActionPage() {
                           )}
                         </Box>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.progress as string}
                         </Typography>
@@ -1121,7 +1121,7 @@ export default function AutoActionPage() {
                       </Grid>
                       {selectedTask.type === TaskType.SEARCH && (
                         <>
-                          <Grid item xs={12}>
+                          <Grid size={{ xs: 12 }}>
                             <Typography variant="subtitle2">
                               {translations.searchKeywords as string}
                             </Typography>
@@ -1146,7 +1146,7 @@ export default function AutoActionPage() {
                               )}
                             </Box>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid size={{ xs: 6 }}>
                             <Typography variant="subtitle2">
                               {translations.sortType as string}
                             </Typography>
@@ -1161,7 +1161,7 @@ export default function AutoActionPage() {
                           </Grid>
                         </>
                       )}
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.triggerType as string}{" "}
                         </Typography>
@@ -1182,7 +1182,7 @@ export default function AutoActionPage() {
                               } ${translations.minutes as string}`}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.delaySettings as string}
                         </Typography>
@@ -1190,7 +1190,7 @@ export default function AutoActionPage() {
                           {selectedTask.minDelay} - {selectedTask.maxDelay} 秒
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.executeOnStartup as string}
                         </Typography>
@@ -1200,7 +1200,7 @@ export default function AutoActionPage() {
                             : (translations.no as string)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.rescheduleAfterUpdate as string}
                         </Typography>
@@ -1210,7 +1210,7 @@ export default function AutoActionPage() {
                             : (translations.no as string)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.commentContent as string}
                         </Typography>
@@ -1229,7 +1229,7 @@ export default function AutoActionPage() {
                           ))}
                         </List>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.useRandomComment as string}
                         </Typography>
@@ -1239,9 +1239,8 @@ export default function AutoActionPage() {
                             : (translations.no as string)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
-                          {" "}
                           {translations.useRandomEmoji as string}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -1250,7 +1249,7 @@ export default function AutoActionPage() {
                             : (translations.no as string)}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.creationTime as string}
                         </Typography>
@@ -1261,7 +1260,7 @@ export default function AutoActionPage() {
                           )}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="subtitle2">
                           {translations.updateTime as string}
                         </Typography>
@@ -1276,7 +1275,7 @@ export default function AutoActionPage() {
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Paper sx={{ p: 2 }}>
                     <Box
                       sx={{
@@ -1445,7 +1444,7 @@ export default function AutoActionPage() {
         <DialogTitle> {translations.createNewTask as string}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl component="fieldset">
                 <FormLabel component="legend">
                   {translations.taskType as string}
@@ -1473,7 +1472,7 @@ export default function AutoActionPage() {
 
             {newTask.type === TaskType.SEARCH && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -1507,7 +1506,7 @@ export default function AutoActionPage() {
                     )}
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>{translations.sortType as string}</InputLabel>
                     <Select
@@ -1532,7 +1531,7 @@ export default function AutoActionPage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12 }}>
                   <FormControl fullWidth>
                     <InputLabel> {translations.noteType as string}</InputLabel>
                     <Select
@@ -1560,13 +1559,13 @@ export default function AutoActionPage() {
               </>
             )}
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider textAlign="left">
                 {translations.commentSettings as string}
               </Divider>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -1581,7 +1580,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="subtitle2" gutterBottom>
                 {translations.commentTemplates as string}
               </Typography>
@@ -1598,7 +1597,7 @@ export default function AutoActionPage() {
                 ) : (
                   <Grid container spacing={1}>
                     {templates.map((template) => (
-                      <Grid item xs={12} key={template.id}>
+                      <Grid size={{ xs: 12 }} key={template.id}>
                         <FormControlLabel
                           control={
                             <Checkbox
@@ -1629,13 +1628,13 @@ export default function AutoActionPage() {
               </Paper>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider textAlign="left">
                 {translations.executionSettings as string}
               </Divider>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl component="fieldset">
                 <FormLabel component="legend">
                   {translations.triggerType as string}
@@ -1670,7 +1669,7 @@ export default function AutoActionPage() {
             </Grid>
 
             {newTask.triggerType === TriggerType.SCHEDULED && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label={translations.scheduledExecutionTime as string}
@@ -1683,7 +1682,7 @@ export default function AutoActionPage() {
             )}
 
             {newTask.triggerType === TriggerType.INTERVAL && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   type="number"
@@ -1700,7 +1699,7 @@ export default function AutoActionPage() {
               </Grid>
             )}
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 {
                   (translations.minimumDelay as Function)(
@@ -1717,7 +1716,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 {
                   (translations.maximumDelay as Function)(
@@ -1734,7 +1733,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -1746,14 +1745,13 @@ export default function AutoActionPage() {
                     maxComments: Number.parseInt(e.target.value),
                   })
                 }
-                InputProps={{ inputProps: { min: 1 } }}
                 helperText={
                   translations.taskWillStopAfterReachingCommentLimit as string
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -1806,7 +1804,7 @@ export default function AutoActionPage() {
         <DialogTitle>{translations.editTask as string}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl component="fieldset">
                 <FormLabel component="legend">
                   {translations.taskType as string}
@@ -1837,7 +1835,7 @@ export default function AutoActionPage() {
 
             {editTask.type === TaskType.SEARCH && (
               <>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -1871,7 +1869,7 @@ export default function AutoActionPage() {
                     )}
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12 }}>
                   <FormControl fullWidth>
                     <InputLabel>{translations.sortType as string}</InputLabel>
                     <Select
@@ -1896,7 +1894,7 @@ export default function AutoActionPage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth>
                     <InputLabel>{translations.noteType as string}</InputLabel>
                     <Select
@@ -1924,13 +1922,13 @@ export default function AutoActionPage() {
               </>
             )}
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider textAlign="left">
                 {translations.commentSettings as string}
               </Divider>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 multiline
@@ -1945,7 +1943,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Typography variant="subtitle2" gutterBottom>
                 {translations.commentTemplates as string}
               </Typography>
@@ -1962,7 +1960,7 @@ export default function AutoActionPage() {
                 ) : (
                   <Grid container spacing={1}>
                     {templates.map((template) => (
-                      <Grid item xs={12} key={template.id}>
+                      <Grid size={{ xs: 12 }} key={template.id}>
                         <FormControlLabel
                           control={
                             <Checkbox
@@ -1995,13 +1993,13 @@ export default function AutoActionPage() {
               </Paper>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider textAlign="left">
                 {translations.executionSettings as string}
               </Divider>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControl component="fieldset">
                 <FormLabel component="legend">
                   {translations.triggerType as string}
@@ -2036,7 +2034,7 @@ export default function AutoActionPage() {
             </Grid>
 
             {editTask.triggerType === TriggerType.SCHEDULED && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label={translations.scheduledExecutionTime as string}
@@ -2049,7 +2047,7 @@ export default function AutoActionPage() {
             )}
 
             {editTask.triggerType === TriggerType.INTERVAL && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   type="number"
@@ -2061,12 +2059,11 @@ export default function AutoActionPage() {
                       intervalMinutes: Number.parseInt(e.target.value),
                     })
                   }
-                  InputProps={{ inputProps: { min: 1 } }}
                 />
               </Grid>
             )}
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 {
                   (translations.minimumDelay as Function)(
@@ -2083,7 +2080,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography gutterBottom>
                 {
                   (translations.maximumDelay as Function)(
@@ -2100,7 +2097,7 @@ export default function AutoActionPage() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
                 type="number"
@@ -2112,14 +2109,13 @@ export default function AutoActionPage() {
                     maxComments: Number.parseInt(e.target.value),
                   })
                 }
-                InputProps={{ inputProps: { min: 1 } }}
                 helperText={
                   translations.taskWillStopAfterReachingCommentLimit as string
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -2144,7 +2140,7 @@ export default function AutoActionPage() {
               </Typography>
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={
                   <Checkbox

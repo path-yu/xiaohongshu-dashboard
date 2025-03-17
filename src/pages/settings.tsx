@@ -8,7 +8,6 @@ import {
   TextField,
   Button,
   Alert,
-  Grid,
   Divider,
   Switch,
   FormControlLabel,
@@ -25,7 +24,7 @@ import { usePlaywright } from "../contexts/playwright-context";
 import { getWebSession, setWebSession } from "../services/settings-service";
 import { useTheme } from "../contexts/theme-context";
 import { useLanguage } from "../contexts/language-context"; // Import language context
-
+import Grid from "@mui/material/Grid2";
 interface Settings {
   web_session: string;
   autoStartPlaywright: boolean;
@@ -101,8 +100,9 @@ export default function SettingsPage() {
     _: React.MouseEvent<HTMLElement>,
     newThemeMode: string | null
   ) => {
-    if (newThemeMode) {
+    if (newThemeMode !== "system") {
       setThemeMode(newThemeMode as "light" | "dark");
+    } else {
     }
   };
 
@@ -170,7 +170,7 @@ export default function SettingsPage() {
       }}
     >
       <Grid sx={{ flexGrow: 1, width: "60vw" }} container spacing={2}>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h5" component="div" gutterBottom>
@@ -184,7 +184,7 @@ export default function SettingsPage() {
 
               <form onSubmit={handleSaveSettings}>
                 <Grid container spacing={3}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="web_session"
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -211,7 +211,7 @@ export default function SettingsPage() {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <Button
                       type="submit"
                       variant="contained"
@@ -238,26 +238,26 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 {translations.findCredentials as string}
               </Typography>
 
-              <Typography variant="body2" paragraph>
+              <Typography variant="body2">
                 {translations.step1 as string}
               </Typography>
 
-              <Typography variant="body2" paragraph>
+              <Typography variant="body2">
                 {translations.step2 as string}
               </Typography>
 
-              <Typography variant="body2" paragraph>
+              <Typography variant="body2">
                 {translations.step3 as string}
               </Typography>
 
-              <Typography variant="body2" paragraph>
+              <Typography variant="body2">
                 {translations.step4 as string}
               </Typography>
 
@@ -267,7 +267,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           {/* Theme Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
@@ -304,6 +304,13 @@ export default function SettingsPage() {
                     <DarkModeIcon sx={{ mr: 1 }} />
                     {translations.dark as string}
                   </ToggleButton>
+                  <ToggleButton
+                    value="system"
+                    aria-label="system mode"
+                    sx={{ flex: 1 }}
+                  >
+                    {translations.system as string}
+                  </ToggleButton>
                 </ToggleButtonGroup>
                 <Typography
                   variant="body2"
@@ -333,7 +340,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           {/* Language Settings Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>

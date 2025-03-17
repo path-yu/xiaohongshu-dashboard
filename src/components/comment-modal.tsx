@@ -11,7 +11,6 @@ import {
   Checkbox,
   FormControlLabel,
   Divider,
-  Grid,
   Slider,
   CircularProgress,
   Alert,
@@ -25,6 +24,8 @@ import { useToast } from "../contexts/toast-context";
 import type { CommentTemplate } from "../types";
 import { commentNote } from "../services/comment-service";
 import { usePlaywright } from "../contexts/playwright-context";
+import Grid from "@mui/material/Grid2";
+import { useLanguage } from "../contexts/language-context"; // Import language context
 
 export default function CommentModal() {
   const { isCommentModalOpen, closeCommentModal, selectedPosts } =
@@ -48,6 +49,7 @@ export default function CommentModal() {
   const [showResults, setShowResults] = useState(false);
   const { showToast } = useToast();
   const { status: playwrightStatus } = usePlaywright();
+  const { translations } = useLanguage(); // Use language context
 
   // Load templates from localStorage
   useEffect(() => {
@@ -84,7 +86,7 @@ export default function CommentModal() {
   const handleSubmit = async () => {
     // Validate that either custom comment or at least one template is selected
     if (!customComment && selectedTemplates.length === 0) {
-      setError("请输入自定义评论或选择至少一个评论模板");
+      setError(translations.enterCustomCommentContent as string);
       return;
     }
 
@@ -131,14 +133,16 @@ export default function CommentModal() {
               comment,
               success: Math.random() > 0.2, // 80% success rate
               message:
-                Math.random() > 0.2 ? "评论成功" : "评论失败，请稍后重试",
+                Math.random() > 0.2
+                  ? (translations.commentSuccess as string)
+                  : (translations.commentFailure as string),
             });
           }
         }
 
         setCommentResults(mockResults);
         setShowResults(true);
-        showToast("模拟评论完成！请启动 Playwright 以使用真实 API", "info");
+        showToast(translations.mockCommentComplete as string, "info");
         return;
       }
 
@@ -182,8 +186,8 @@ export default function CommentModal() {
             comment,
             success: response.success,
             message: response.success
-              ? "评论成功"
-              : response.error || "评论失败",
+              ? (translations.commentSuccess as string)
+              : response.error || (translations.commentFailure as string),
           });
         } catch (err) {
           console.error(`Error commenting on post ${post.id}:`, err);
@@ -193,7 +197,9 @@ export default function CommentModal() {
             comment,
             success: false,
             message:
-              err instanceof Error ? err.message : "评论失败，请稍后重试",
+              err instanceof Error
+                ? err.message
+                : (translations.commentFailure as string),
           });
         }
       }
@@ -205,18 +211,18 @@ export default function CommentModal() {
       const successCount = results.filter((r) => r.success).length;
 
       if (successCount === results.length) {
-        showToast("所有评论发布成功！", "success");
+        showToast(translations.allCommentsSuccess as string, "success");
       } else if (successCount > 0) {
         showToast(
-          `部分评论发布成功 (${successCount}/${results.length})`,
+          `${translations.partialCommentsSuccess} (${successCount}/${results.length})`,
           "warning"
         );
       } else {
-        showToast("评论发布失败，请查看详情", "error");
+        showToast(translations.allCommentsFailure as string, "error");
       }
     } catch (err) {
       console.error("Error posting comments:", err);
-      setError("评论发布失败，请稍后重试");
+      setError(translations.commentFailure as string);
     } finally {
       setSubmitting(false);
     }
@@ -240,7 +246,8 @@ export default function CommentModal() {
       {!showResults ? (
         <>
           <DialogTitle>
-            为 {selectedPosts.length} 个选中的帖子添加评论
+            {translations.addCommentToSelectedPosts as string}{" "}
+            {selectedPosts.length} {translations.selectedPosts as string}
           </DialogTitle>
 
           <DialogContent dividers>
@@ -252,33 +259,35 @@ export default function CommentModal() {
 
             {playwrightStatus !== "running" && (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                Playwright 未运行，将使用模拟数据
+                {translations.playwrightNotRunning as string}
               </Alert>
             )}
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  自定义评论
+                  {translations.customComment as string}
                 </Typography>
 
                 <TextField
                   fullWidth
                   multiline
                   rows={4}
-                  placeholder="在此输入自定义评论..."
+                  placeholder={translations.enterCustomCommentContent as string}
                   value={customComment}
                   onChange={(e) => setCustomComment(e.target.value)}
                   disabled={submitting}
                 />
 
                 <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-                  评论模板
+                  {translations.commentTemplates as string}
                 </Typography>
 
                 {templates.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    没有可用的模板。请在模板页面创建模板。
+                    {
+                      translations.noTemplatesAvailableCreateInTemplatePage as string
+                    }
                   </Typography>
                 ) : (
                   <Box sx={{ maxHeight: 200, overflow: "auto" }}>
@@ -314,9 +323,10 @@ export default function CommentModal() {
                 )}
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  已选择的帖子 ({selectedPosts.length})
+                  {translations.selectedPosts as string} ({selectedPosts.length}
+                  )
                 </Typography>
 
                 <Box sx={{ maxHeight: 200, overflow: "auto", mb: 3 }}>
@@ -343,15 +353,17 @@ export default function CommentModal() {
                 <Divider sx={{ my: 2 }} />
 
                 <Typography variant="subtitle1" gutterBottom>
-                  延迟设置
+                  {translations.delaySettings as string}
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" paragraph>
-                  设置评论之间的最小和最大延迟，以避免频率限制
+                  {translations.setCommentDelays as string}
                 </Typography>
 
                 <Box sx={{ px: 2 }}>
-                  <Typography gutterBottom>最小延迟: {minDelay} 秒</Typography>
+                  <Typography gutterBottom>
+                    {(translations.minimumDelay as Function)(minDelay)}
+                  </Typography>
                   <Slider
                     value={minDelay}
                     onChange={handleMinDelayChange}
@@ -361,7 +373,7 @@ export default function CommentModal() {
                   />
 
                   <Typography gutterBottom sx={{ mt: 2 }}>
-                    最大延迟: {maxDelay} 秒
+                    {(translations.maximumDelay as Function)(maxDelay)}
                   </Typography>
                   <Slider
                     value={maxDelay}
@@ -377,14 +389,14 @@ export default function CommentModal() {
                   color="text.secondary"
                   sx={{ mt: 2 }}
                 >
-                  预计总时间:{" "}
-                  {Math.round(
-                    (((minDelay + maxDelay) / 2) *
-                      selectedPosts.length *
-                      (customComment ? 1 : 0 + selectedTemplates.length)) /
-                      60
-                  )}{" "}
-                  分钟
+                  {(translations.estimatedTotalTime as Function)(
+                    Math.round(
+                      (((minDelay + maxDelay) / 2) *
+                        selectedPosts.length *
+                        (customComment ? 1 : 0 + selectedTemplates.length)) /
+                        60
+                    )
+                  )}
                 </Typography>
               </Grid>
             </Grid>
@@ -392,7 +404,7 @@ export default function CommentModal() {
 
           <DialogActions>
             <Button onClick={handleClose} disabled={submitting}>
-              取消
+              {translations.cancel as string}
             </Button>
             <Button
               onClick={handleSubmit}
@@ -405,22 +417,24 @@ export default function CommentModal() {
               {submitting ? (
                 <>
                   <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
-                  发布评论中...
+                  {translations.postingComments as string}
                 </>
               ) : (
-                "发布评论"
+                (translations.postComments as string)
               )}
             </Button>
           </DialogActions>
         </>
       ) : (
         <>
-          <DialogTitle>评论结果</DialogTitle>
+          <DialogTitle>{translations.commentResults as string}</DialogTitle>
 
           <DialogContent dividers>
             <Typography variant="subtitle1" gutterBottom>
-              评论发布结果 ({commentResults.filter((r) => r.success).length}/
-              {commentResults.length} 成功)
+              {(translations.commentResultsSummary as Function)(
+                commentResults.filter((r) => r.success).length,
+                commentResults.length
+              )}
             </Typography>
 
             <Paper
@@ -449,7 +463,9 @@ export default function CommentModal() {
                               fontSize: "0.75rem",
                             }}
                           >
-                            {result.success ? "成功" : "失败"}
+                            {result.success
+                              ? (translations.success as string)
+                              : (translations.failure as string)}
                           </Box>
                         </Box>
                       }
@@ -460,7 +476,8 @@ export default function CommentModal() {
                             display="block"
                             color="text.secondary"
                           >
-                            评论内容: {result.comment}
+                            {translations.commentContent as string}:{" "}
+                            {result.comment}
                           </Typography>
                           {!result.success && result.message && (
                             <Typography
@@ -468,7 +485,7 @@ export default function CommentModal() {
                               display="block"
                               color="error"
                             >
-                              错误: {result.message}
+                              {translations.error as string}: {result.message}
                             </Typography>
                           )}
                         </>
@@ -482,7 +499,7 @@ export default function CommentModal() {
 
           <DialogActions>
             <Button onClick={handleClose} color="primary">
-              关闭
+              {translations.close as string}
             </Button>
           </DialogActions>
         </>

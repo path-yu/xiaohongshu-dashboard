@@ -15,7 +15,11 @@ const LanguageContext = createContext<{
     [key: string]:
       | string
       | ((count: number) => string)
-      | ((taskId: string, status: string) => string);
+      | ((taskId: string, status: string) => string)
+      | ((minDelay: number) => string)
+      | ((maxDelay: number) => string)
+      | ((estimatedTime: number) => string)
+      | ((successCount: number, totalCount: number) => string);
   };
 }>({
   language: "en",

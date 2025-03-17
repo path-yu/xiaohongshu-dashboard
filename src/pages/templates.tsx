@@ -10,16 +10,15 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Divider,
-  Grid,
   Paper,
 } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -210,7 +209,7 @@ export default function TemplatesPage() {
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Grid container spacing={3}>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Box
             sx={{
               display: "flex",
@@ -243,7 +242,7 @@ export default function TemplatesPage() {
           </Box>
         </Grid>
 
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -260,7 +259,24 @@ export default function TemplatesPage() {
                 <List>
                   {templates.map((template) => (
                     <React.Fragment key={template.id}>
-                      <ListItem>
+                      <ListItem
+                        secondaryAction={
+                          <>
+                            <IconButton
+                              edge="end"
+                              onClick={() => handleEditTemplate(template)}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              edge="end"
+                              onClick={() => handleDeleteTemplate(template.id)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </>
+                        }
+                      >
                         <ListItemText
                           primary={template.name}
                           secondary={
@@ -279,20 +295,6 @@ export default function TemplatesPage() {
                             </Typography>
                           }
                         />
-                        <ListItemSecondaryAction>
-                          <IconButton
-                            edge="end"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            edge="end"
-                            onClick={() => handleDeleteTemplate(template.id)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
                       </ListItem>
                       <Divider component="li" />
                     </React.Fragment>
@@ -303,7 +305,7 @@ export default function TemplatesPage() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -404,7 +406,7 @@ export default function TemplatesPage() {
           {translations.bulkImportCommentTemplates as string}{" "}
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" paragraph sx={{ mt: 1 }}>
+          <Typography variant="body2" sx={{ mt: 1 }}>
             {translations.enterMultipleComments as string}
           </Typography>
           <TextField

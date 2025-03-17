@@ -6,7 +6,11 @@ const translations: Record<
     [key: string]:
       | string
       | ((count: number) => string)
-      | ((taskId: string, status: string) => string);
+      | ((taskId: string, status: string) => string)
+      | ((minDelay: number) => string)
+      | ((maxDelay: number) => string)
+      | ((estimatedTime: number) => string)
+      | ((successCount: number, totalCount: number) => string);
   }
 > = {
   en: {
@@ -213,6 +217,26 @@ const translations: Record<
     deleteTask: "Delete Task",
     confirmDeleteTaskMessage:
       "Are you sure you want to delete this task? This action cannot be undone.",
+    addCommentToSelectedPosts: "Add Comment to Selected Posts",
+    selectedPosts: "Selected Posts",
+    setCommentDelays: "Set comment delays to avoid rate limits",
+    estimatedTotalTime: (estimatedTime: number) =>
+      `Estimated Total Time: ${estimatedTime} minutes`,
+    postComments: "Post Comments",
+    postingComments: "Posting Comments...",
+    commentResults: "Comment Results",
+    commentResultsSummary: (successCount: number, totalCount: number) =>
+      `Comment Results (${successCount}/${totalCount} Success)`,
+    error: "Error",
+    close: "Close",
+    commentSuccess: "Comment posted successfully",
+    commentFailure: "Failed to post comment, please try again later",
+    mockCommentComplete:
+      "Mock comments complete! Please start Playwright to use the real API",
+    allCommentsSuccess: "All comments posted successfully!",
+    partialCommentsSuccess: "Some comments posted successfully",
+    allCommentsFailure: "Failed to post comments, please check the details",
+    system: "System",
   },
 
   zh: {
@@ -407,6 +431,25 @@ const translations: Record<
     updateTask: "更新任务",
     deleteTask: "删除任务",
     confirmDeleteTaskMessage: "确定要删除此任务吗？此操作无法撤销。",
+    addCommentToSelectedPosts: "为选中的帖子添加评论",
+    selectedPosts: "选中的帖子",
+    setCommentDelays: "设置评论之间的延迟，以避免频率限制",
+    estimatedTotalTime: (estimatedTime: number) =>
+      `预计总时间: ${estimatedTime} 分钟`,
+    postComments: "发布评论",
+    postingComments: "发布评论中...",
+    commentResults: "评论结果",
+    commentResultsSummary: (successCount: number, totalCount: number) =>
+      `评论发布结果 (${successCount}/${totalCount} 成功)`,
+    error: "错误",
+    close: "关闭",
+    commentSuccess: "评论成功",
+    commentFailure: "评论失败，请稍后重试",
+    mockCommentComplete: "模拟评论完成！请启动 Playwright 以使用真实 API",
+    allCommentsSuccess: "所有评论发布成功！",
+    partialCommentsSuccess: "部分评论发布成功",
+    allCommentsFailure: "评论发布失败，请查看详情",
+    system: "系统",
   },
 };
 

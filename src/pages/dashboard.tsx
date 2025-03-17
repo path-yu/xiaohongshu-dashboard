@@ -3,7 +3,6 @@ import {
   Box,
   CardContent,
   Typography,
-  Grid,
   Tabs,
   Tab,
   CircularProgress,
@@ -27,7 +26,7 @@ import { useToast } from "../contexts/toast-context";
 import { usePostContext } from "../contexts/post-context";
 import AnimatedCard from "../components/animated-card";
 import { useLanguage } from "../contexts/language-context"; // Import language context
-
+import Grid from "@mui/material/Grid2";
 export default function Dashboard() {
   const [tabValue, setTabValue] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -229,7 +228,7 @@ export default function Dashboard() {
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Grid container spacing={3}>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <AnimatedCard>
             <CardContent>
               <Box

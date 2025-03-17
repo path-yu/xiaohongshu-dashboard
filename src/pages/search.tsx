@@ -16,7 +16,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
   type SelectChangeEvent,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -32,6 +31,7 @@ import {
 } from "../services/search-service";
 import { usePlaywright } from "../contexts/playwright-context";
 import { useLanguage } from "../contexts/language-context"; // Import language context
+import Grid from "@mui/material/Grid2";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -118,11 +118,11 @@ export default function SearchPage() {
         title: item.note_card?.display_title || "无标题",
         content: item.note_card?.display_title || "无内容", // Use title as content since we don't have content in the API
         author: item.note_card?.user?.nickname || "未知用户",
-        likes: Number.parseInt(item.note_card.interact_info?.liked_count) || 0,
+        likes: Number.parseInt(item.note_card?.interact_info?.liked_count) || 0,
         comments: Math.floor(Math.random() * 100), // Random comments count since we don't have it in the API
         imageUrl:
-          item.note_card.cover?.url_default ||
-          item.note_card.cover?.url_pre ||
+          item.note_card?.cover?.url_default ||
+          item.note_card?.cover?.url_pre ||
           "https://via.placeholder.com/200x200?text=No+Image",
         category: "搜索结果",
       }));
@@ -147,7 +147,7 @@ export default function SearchPage() {
 
           <form onSubmit={handleSearch}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -164,7 +164,7 @@ export default function SearchPage() {
                 />
               </Grid>
 
-              <Grid item xs={6} md={2}>
+              <Grid size={{ xs: 6, md: 2 }}>
                 <FormControl fullWidth>
                   <InputLabel id="sort-type-label">
                     {translations.sortType as string}
@@ -188,7 +188,7 @@ export default function SearchPage() {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={6} md={2}>
+              <Grid size={{ xs: 6, md: 2 }}>
                 <FormControl fullWidth>
                   <InputLabel id="note-type-label">
                     {translations.noteType as string}
@@ -212,7 +212,7 @@ export default function SearchPage() {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={2}>
+              <Grid size={{ xs: 12, md: 2 }}>
                 <Button
                   type="submit"
                   variant="contained"
