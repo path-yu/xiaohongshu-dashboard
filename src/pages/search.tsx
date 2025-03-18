@@ -85,6 +85,7 @@ export default function SearchPage() {
             comments: Math.floor(Math.random() * 100),
             imageUrl: `https://via.placeholder.com/200x200?text=Search+${index}`,
             category: index % 2 === 0 ? "时尚" : "美妆",
+            avatar: "",
           }));
 
         setSearchResults(mockResults);
@@ -125,6 +126,7 @@ export default function SearchPage() {
           item.note_card?.cover?.url_pre ||
           "https://via.placeholder.com/200x200?text=No+Image",
         category: "搜索结果",
+        avatar: item.note_card?.user?.avatar || "",
       }));
 
       setSearchResults(apiResults);

@@ -303,11 +303,16 @@ export default function CommentModal() {
                         }
                         label={
                           <Box>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography
+                              sx={{ paddingLeft: "12px" }}
+                              variant="body2"
+                              fontWeight="medium"
+                            >
                               {template.name}
                             </Typography>
                             <Typography
                               variant="caption"
+                              sx={{ paddingLeft: "12px" }}
                               color="text.secondary"
                             >
                               {template.content.length > 50

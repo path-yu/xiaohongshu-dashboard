@@ -131,6 +131,9 @@ export default function Dashboard() {
               categories[tabValue]?.name || "示例"
             }+${index}`,
             category: categories[tabValue]?.name || "示例",
+            avatar: `https://via.placeholder.com/200x200?text=${
+              categories[tabValue]?.name || "示例"
+            }+${index}`,
           }));
 
         setPosts(mockPosts);
@@ -171,6 +174,7 @@ export default function Dashboard() {
           item.note_card.cover?.url_pre ||
           "https://via.placeholder.com/200x200?text=No+Image",
         category: categories[tabValue]?.name || "未分类",
+        avatar: item.note_card?.user?.avatar || "",
       }));
 
       setPosts(apiPosts);
@@ -199,6 +203,7 @@ export default function Dashboard() {
           comments: Math.floor(Math.random() * 100),
           imageUrl: `https://via.placeholder.com/200x200?text=Error+${index}`,
           category: categories[tabValue]?.name || "未分类",
+          avatar: ``,
         }));
 
       setCurrentPosts(mockErrorPosts);
@@ -324,6 +329,7 @@ export default function Dashboard() {
                         category:
                           (categories[tabValue]?.name as string) ||
                           (translations.uncategorized as string),
+                        avatar: "",
                       }))}
                   />
                 </Box>

@@ -95,10 +95,22 @@ export default function PostList({ posts }: PostListProps) {
                     alignItems: "center",
                   }}
                 >
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ display: "flex", alignItems: "center" }}
+                  >
+                    {post.avatar ? (
+                      <img
+                        src={post.avatar}
+                        alt={post.author}
+                        width="30"
+                        height="30"
+                        style={{ borderRadius: "50%", marginRight: "5px" }}
+                      ></img>
+                    ) : null}
                     @{post.author}
                   </Typography>
-
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Chip
                       icon={<FavoriteIcon fontSize="small" />}
