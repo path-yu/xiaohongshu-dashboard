@@ -17,7 +17,6 @@
     "@hookform/resolvers": "^3.9.1",
     "@mui/icons-material": "latest",
     "@mui/material": "latest",
-    "@mui/material-nextjs": "latest",
     "@mui/material-pigment-css": "latest",
     "@mui/x-date-pickers": "^7.27.3",
     "@types/react": "latest",

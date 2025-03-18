@@ -972,6 +972,7 @@ export default function AutoActionPage() {
                         <TableCell>
                           <Chip
                             label={task.status}
+                            key={task.id}
                             color={getStatusColor(task.status)}
                             size="small"
                           />
@@ -1013,11 +1014,13 @@ export default function AutoActionPage() {
                               label={translations.yes as string}
                               color="success"
                               size="small"
+                              key={task.id}
                             />
                           ) : (
                             <Chip
                               label={translations.no as string}
                               color="default"
+                              key={task.id}
                               size="small"
                             />
                           )}
@@ -1028,12 +1031,14 @@ export default function AutoActionPage() {
                               label={translations.yes as string}
                               color="success"
                               size="small"
+                              key={task.id}
                             />
                           ) : (
                             <Chip
                               label={translations.no as string}
                               color="default"
                               size="small"
+                              key={task.id}
                             />
                           )}
                         </TableCell>
@@ -1393,6 +1398,7 @@ export default function AutoActionPage() {
                                           log.success ? "success" : "error"
                                         }
                                         size="small"
+                                        key={log.id}
                                       />
                                       {!log.success && log.error && (
                                         <Tooltip title={log.error}>
